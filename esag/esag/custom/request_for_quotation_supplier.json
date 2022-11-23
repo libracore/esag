@@ -1,0 +1,31 @@
+{
+ "custom_fields": [],
+ "custom_perms": [],
+ "doctype": "Request for Quotation Supplier",
+ "property_setters": [
+  {
+   "_assign": null,
+   "_comments": null,
+   "_liked_by": null,
+   "_user_tags": null,
+   "creation": "2022-11-23 16:46:12.448672",
+   "default_value": null,
+   "doc_type": "Request for Quotation Supplier",
+   "docstatus": 0,
+   "doctype_or_field": "DocField",
+   "field_name": "supplier_name",
+   "idx": 0,
+   "modified": "2022-11-23 16:46:12.448672",
+   "modified_by": "Administrator",
+   "name": "Request for Quotation Supplier-supplier_name-in_list_view",
+   "owner": "Administrator",
+   "parent": null,
+   "parentfield": null,
+   "parenttype": null,
+   "property": "in_list_view",
+   "property_type": "Check",
+   "value": "1"
+  }
+ ],
+ "sync_on_migrate": 1
+}
