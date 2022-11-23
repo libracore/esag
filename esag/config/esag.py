@@ -14,6 +14,11 @@ def get_data():
                     },
                     {
                         "type": "doctype",
+                        "name": "BOM",
+                        "label": _("BOM")
+                    },
+                    {
+                        "type": "doctype",
                         "name": "Item Price",
                         "label": _("Item Price")
                     },
@@ -73,6 +78,16 @@ def get_data():
                         "type": "doctype",
                         "name": "Supplier",
                         "label": _("Supplier")
+                    },
+                    {
+                        "type": "doctype",
+                        "name": "Request for Quotation",
+                        "label": _("Request for Quotation")
+                    },
+                    {
+                        "type": "doctype",
+                        "name": "Supplier Quotation",
+                        "label": _("Supplier Quotation")
                     },
                     {
                         "type": "doctype",
