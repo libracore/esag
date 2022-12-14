@@ -39,3 +39,18 @@ def get_next_item_code(customer_order=False):
         else:
             last_id = 0
         return "ETH_{0:05d}".format(last_id + 1)
+
+@frappe.whitelist()
+def get_next_barcode():
+    last = frappe.db.sql("""
+        SELECT `barcode`
+        FROM `tabItem Barcode`
+        WHERE LENGTH(`barcode`) = 14
+        ORDER BY `barcode` DESC
+        LIMIT 1
+    """, as_dict=True)
+    if len(last) > 0:
+        last_id = int(last[0]['barcode'])
+    else:
+        last_id = 0
+    return "{0:014d}".format(last_id + 1)
