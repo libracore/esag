@@ -14,6 +14,11 @@ def get_data():
                     },
                     {
                         "type": "doctype",
+                        "name": "Translation",
+                        "label": _("Translation")
+                    },
+                    {
+                        "type": "doctype",
                         "name": "BOM",
                         "label": _("BOM")
                     },

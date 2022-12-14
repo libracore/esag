@@ -31,7 +31,9 @@ app_include_js = [
 doctype_js = {
     "Purchase Order" : "public/js/purchase_order.js",
     "Purchase Receipt" : "public/js/purchase_receipt.js",
-    "Purchase Invoice" : "public/js/purchase_invoice.js"
+    "Purchase Invoice" : "public/js/purchase_invoice.js",
+    "Customer" : "public/js/customer.js",
+    "Supplier" : "public/js/supplier.js"
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
