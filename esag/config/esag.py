@@ -36,6 +36,20 @@ def get_data():
                         "type": "doctype",
                         "name": "Stock Entry",
                         "label": _("Stock Entry")
+                    },
+                    {
+                        "type": "page",
+                        "name": "stock-balance",
+                        "label": _("Stock Summary"),
+                        "dependencies": ["Item"],
+                    },
+                    {
+                        "type": "report",
+                        "is_query_report": True,
+                        "name": "Stock Balance",
+                        "doctype": "Stock Ledger Entry",
+                        "onboard": 1,
+                        "dependencies": ["Item"],
                     }
             ]
         },
@@ -255,6 +269,17 @@ def get_data():
                         "doctype": "Salary Slip",
                         "is_query_report": True
                     }
+            ]
+        },
+        {
+            "label": _("Zeiterfassung"),
+            "icon": "fa fa-users",
+            "items": [
+                    {
+                        "type": "doctype",
+                        "name": "Timesheet",
+                        "label": _("Timesheet")
+                    },
             ]
         }
     ]
