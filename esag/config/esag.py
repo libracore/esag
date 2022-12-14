@@ -281,5 +281,23 @@ def get_data():
                         "label": _("Timesheet")
                     },
             ]
+        },
+        {
+            "label": _("Reporting"),
+            "icon": "fa fa-users",
+            "items": [
+                {
+                    "type": "report",
+                    "is_query_report": True,
+                    "name": "Sales Analytics",
+                    "doctype": "Sales Order"
+                },
+                {
+                    "type": "report",
+                    "is_query_report": True,
+                    "name": "Purchase Analytics",
+                    "reference_doctype": "Purchase Order"
+                }
+            ]
         }
     ]
