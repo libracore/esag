@@ -137,7 +137,7 @@ def get_data():
                     {
                         "type": "doctype",
                         "name": "Sales Invoice",
-                        "label": _("Sales Inoice")
+                        "label": _("Sales Invoice")
                     },
                     {
                         "type": "report",
@@ -149,7 +149,7 @@ def get_data():
                     {
                         "type": "doctype",
                         "name": "Purchase Invoice",
-                        "label": _("Purchase Inoice")
+                        "label": _("Purchase Invoice")
                     },
                     {
                         "type": "report",
