@@ -16,7 +16,7 @@ function set_first_address(frm) {
         'callback': function(response) {
             if (response.message) {
                 var address = response.message;
-                var adr_line = address.address_line1 + ", " + address.pincode + " " + address.city;
+                var adr_line = address.address_line1 + ", " + (address.address_line2 || "") + ", " + address.pincode + address.pincode + " " + address.city;
                 cur_frm.set_value('hauptadresse', adr_line);
             }
         }
