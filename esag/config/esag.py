@@ -91,6 +91,11 @@ def get_data():
                         "type": "doctype",
                         "name": "Sales Invoice",
                         "label": _("Sales Invoice")
+                    },
+                    {
+                        "type": "doctype",
+                        "name": "Lead",
+                        "label": _("Lead")
                     }
             ]
         },
