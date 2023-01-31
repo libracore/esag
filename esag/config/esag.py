@@ -285,6 +285,20 @@ def get_data():
                         "name": "Timesheet",
                         "label": _("Timesheet")
                     },
+                    {
+                        "type": "report",
+                        "name": "Worktime Overview",
+                        "label": _("Worktime Overview"),
+                        "doctype": "Timesheet",
+                        "is_query_report": True
+                    },
+                    {
+                        "type": "report",
+                        "name": "Monthly Worktime",
+                        "label": _("Monthly Worktime"),
+                        "doctype": "Timesheet",
+                        "is_query_report": True
+                    }
             ]
         },
         {
