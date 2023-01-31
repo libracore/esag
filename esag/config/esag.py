@@ -69,6 +69,11 @@ def get_data():
                     },
                     {
                         "type": "doctype",
+                        "name": "Contact",
+                        "label": _("Contact")
+                    },
+                    {
+                        "type": "doctype",
                         "name": "Quotation",
                         "label": _("Quotation")
                     },
@@ -86,6 +91,11 @@ def get_data():
                         "type": "doctype",
                         "name": "Sales Invoice",
                         "label": _("Sales Invoice")
+                    },
+                    {
+                        "type": "doctype",
+                        "name": "Lead",
+                        "label": _("Lead")
                     }
             ]
         },
@@ -132,7 +142,7 @@ def get_data():
                     {
                         "type": "doctype",
                         "name": "Sales Invoice",
-                        "label": _("Sales Inoice")
+                        "label": _("Sales Invoice")
                     },
                     {
                         "type": "report",
@@ -144,7 +154,7 @@ def get_data():
                     {
                         "type": "doctype",
                         "name": "Purchase Invoice",
-                        "label": _("Purchase Inoice")
+                        "label": _("Purchase Invoice")
                     },
                     {
                         "type": "report",

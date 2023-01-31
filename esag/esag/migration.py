@@ -10,7 +10,7 @@ def set_supplier_first_address():
         s = frappe.get_doc("Supplier", supplier['name'])
         address = get_primary_supplier_address(s.name)
         if address:
-            s.hauptadresse = "{0}, {1} {2}".format(address.address_line1 or "", address.pincode or "", address.city or "")
+            s.hauptadresse = "{0}, {1}, {2} {3}".format(address.address_line1 or "", address.address_line2 or "", address.pincode or "", address.city or "")
             s.save()
             print("Updated {0}".format(s.name))
     return
@@ -21,7 +21,7 @@ def set_customer_first_address():
         c = frappe.get_doc("Customer", customer['name'])
         address = get_primary_customer_address(c.name)
         if address:
-            c.hauptadresse = "{0}, {1} {2}".format(address.address_line1 or "", address.pincode or "", address.city or "")
+            c.hauptadresse = "{0}, {1}, {2} {3}".format(address.address_line1 or "", address.address_line2 or "", address.pincode or "", address.city or "")
             c.save()
             print("Updated {0}".format(c.name))
     return
