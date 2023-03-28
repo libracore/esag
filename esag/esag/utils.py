@@ -92,7 +92,7 @@ def intermediate_price(item_code, ek_price_list, vk_price_list, target_price_lis
         doc = frappe.get_doc({
             'doctype': 'Item Price',
             'item_code': item_code,
-            'price_list': target_price_list',
+            'price_list': target_price_list,
             'price_list_rate': intermediate
         })
         doc.insert()
