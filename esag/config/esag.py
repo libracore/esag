@@ -326,6 +326,12 @@ def get_data():
                     "is_query_report": True,
                     "name": "Purchase Analytics",
                     "reference_doctype": "Purchase Order"
+                },
+                {
+                    "type": "report",
+                    "is_query_report": True,
+                    "name": "Umsatzbericht auf Artikelebene",
+                    "reference_doctype": "Item"
                 }
             ]
         }

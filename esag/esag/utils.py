@@ -79,7 +79,7 @@ def intermediate_price(item_code, ek_price_list, vk_price_list, target_price_lis
     intermediate = (prices[0]['ekp'] + prices[0]['vkp'])/2
     # check if the target price exists
     target_prices = frappe.get_all("Item Price", 
-        filters={'item_code': item_code, 'price_list': target_price_list'}, 
+        filters={'item_code': item_code, 'price_list': target_price_list}, 
         fields=['name']
     )
     if len(target_prices) > 0:
