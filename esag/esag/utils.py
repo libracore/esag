@@ -74,8 +74,9 @@ def intermediate_price(item_code, ek_price_list, vk_price_list, target_price_lis
          WHERE `tabItem Price`.`item_code` = `tabItem`.`name` 
            AND `tabItem Price`.`price_list` = "{vkp}"
         ), 0) AS `vkp`
-    FROM `tabItem`;
-    """, as_dict=True)
+    FROM `tabItem`
+    WHERE `tabItem`.`item_code` = "{item_code}";
+    """.format(item_code=item_code, ekp=ek_price_list, vkp=vk_price_list), as_dict=True)
     intermediate = (prices[0]['ekp'] + prices[0]['vkp'])/2
     # check if the target price exists
     target_prices = frappe.get_all("Item Price", 
