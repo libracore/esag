@@ -4,3 +4,4 @@
 *.swp
 tags
 esag/docs/current
+__pycache__
