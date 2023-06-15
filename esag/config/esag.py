@@ -332,6 +332,12 @@ def get_data():
                     "is_query_report": True,
                     "name": "Umsatzbericht auf Artikelebene",
                     "reference_doctype": "Item"
+                },
+                {
+                    "type": "report",
+                    "is_query_report": True,
+                    "name": "Monatsreporting",
+                    "reference_doctype": "Budget"
                 }
             ]
         }
