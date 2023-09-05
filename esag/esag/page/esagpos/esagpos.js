@@ -1757,8 +1757,13 @@ class Payment {
         var me = this;
 
         this.dialog.set_primary_action(__("Submit"), function() {
-            me.dialog.hide();
-            me.events.submit_form();
+            if (me.frm.doc.outstanding_amount > 0 ) {
+                frappe.msgprint(__("Payment must be made for the total amount"));
+                return
+            } else {
+                me.dialog.hide();
+                me.events.submit_form();
+            }
         });
     }
 
