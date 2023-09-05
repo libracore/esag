@@ -13,6 +13,8 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
             // online
             wrapper.pos = new frappe.pages.esagpos.posClass(wrapper);
             window.cur_pos = wrapper.pos;
+            setTimeout(function(){wrapper.pos.items.search_field.set_focus();}, 1000);
+            
         }
     });
 }
@@ -20,6 +22,7 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
 frappe.pages.esagpos.refresh = function(wrapper) {
     if (wrapper.pos) {
         wrapper.pos.make_new_invoice();
+        setTimeout(function(){wrapper.pos.items.search_field.set_focus();}, 1000);
     }
 }
 
@@ -332,6 +335,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         this.cart.update_qty_total();
         this.cart.scroll_to_item(item.item_code);
         this.set_form_action();
+        this.items.reset_search_field();
     }
 
     select_batch_and_serial_no(row) {
@@ -1441,6 +1445,7 @@ class POSItems {
     reset_search_field() {
         this.search_field.set_value('');
         this.search_field.$input.trigger("input");
+        this.search_field.set_focus();
     }
 
     bind_events() {
