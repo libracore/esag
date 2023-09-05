@@ -632,6 +632,36 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             frappe.set_route("Form", me.frm.doc.doctype, me.frm.doc.name);
         });
         
+        this.page.add_menu_item(__("Return / Credit Note"), function () {
+            frappe.prompt([
+                {'fieldname': 'sinv', 'fieldtype': 'Link', 'options': 'Sales Invoice', 'label': __("Sales Invoice"), 'reqd': 1,
+                    'get_query': function() { return { filters: {'is_pos':1, 'is_return': 0 } } }
+                }  
+            ],
+            function(values){
+                frappe.call({
+                    type: "POST",
+                    method: 'frappe.model.mapper.make_mapped_doc',
+                    args: {
+                        method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
+                        source_name: values.sinv,
+                        args: null,
+                        selected_children: null
+                    },
+                    freeze: true,
+                    callback: function(r) {
+                        if(!r.exc) {
+                            frappe.model.sync(r.message);
+                            frappe.set_route("Form", r.message.doctype, r.message.name);
+                        }
+                    }
+                })
+            },
+            __("Return / Credit Note"),
+            __("Create")
+            )
+        });
+        
         this.page.add_menu_item(__("Stock Summary"), function () {
             frappe.set_route('stock-balance');
         });
