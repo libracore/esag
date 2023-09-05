@@ -631,6 +631,10 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             frappe.model.sync(me.frm.doc);
             frappe.set_route("Form", me.frm.doc.doctype, me.frm.doc.name);
         });
+        
+        this.page.add_menu_item(__("Stock Summary"), function () {
+            frappe.set_route('stock-balance');
+        });
 
         this.page.add_menu_item(__("POS Profile"), function () {
             frappe.set_route('List', 'POS Profile');
