@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.utils.nestedset import get_root_of
 from erpnext.accounts.doctype.pos_profile.pos_profile import get_item_groups
 
@@ -153,3 +154,37 @@ def search_serial_or_batch_or_barcode_number(search_value):
         return batch_no_data
 
     return {}
+
+@frappe.whitelist()
+def esag_pos_login(encrypted_hash):
+    from frappe import auth
+    from frappe.utils.password import decrypt
+    try:
+        decrypted_hash = decrypt(encrypted_hash)
+        user = decrypted_hash.split("|")[0]
+        pwd = decrypted_hash.split("|")[1]
+        try:
+            login_manager = frappe.auth.LoginManager()
+            login_manager.authenticate(user=user, pwd=pwd)
+            login_manager.post_login()
+            return True
+        except frappe.exceptions.AuthenticationError:
+            frappe.clear_messages()
+            return False
+    except:
+        frappe.clear_messages()
+        frappe.throw(_('Invalid Token'))
+
+@frappe.whitelist()
+def esag_pos_logout(posprofiluser, posprofil):
+    from frappe import auth
+    from frappe.utils.password import get_decrypted_password
+    pwd = get_decrypted_password('POS Profile', posprofil)
+    try:
+        login_manager = frappe.auth.LoginManager()
+        login_manager.authenticate(user=posprofiluser, pwd=pwd)
+        login_manager.post_login()
+        return True
+    except frappe.exceptions.AuthenticationError:
+        frappe.clear_messages()
+        return False

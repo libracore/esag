@@ -7,7 +7,19 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
         title: __('Point of Sale'),
         single_column: true
     });
-
+    
+    page.add_view('esagpos_login', frappe.render_template("esagpos_login", {}));
+    $("#esag_pos_login_btn").click(function(){
+        var encrypted_hash = $("#esag_pos_login_password").val();
+        frappe.call({
+                method: "esag.esag.page.esagpos.esagpos.esag_pos_login",
+                freeze: true,
+                args: {
+                    encrypted_hash: encrypted_hash
+                }
+            }).then(() => {location.reload();});
+    });
+    
     frappe.db.get_value('POS Settings', {name: 'POS Settings'}, 'is_online', (r) => {
         if (r && !cint(r.use_pos_in_offline_mode)) {
             // online
@@ -60,7 +72,15 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                 }
             },
             () => {
-                frappe.dom.unfreeze();
+                frappe.db.get_value('POS Profile',  this.frm.doc.pos_profile , 'user', (r) => {
+                    if (r.user == frappe.session.user) {
+                        cur_page.page.page.set_view('esagpos_login');
+                    }
+                    localStorage.setItem("posprofiluser", r.user);
+                    localStorage.setItem("posprofil", this.frm.doc.pos_profile);
+                    frappe.dom.unfreeze();
+                });
+                
             },
             () => this.page.set_title(__('Point of Sale'))
         ]);
@@ -677,6 +697,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         this.page.add_menu_item(__('Change POS Profile'), function() {
             me.change_pos_profile();
         });
+        
         this.page.add_menu_item(__('Close the POS'), function() {
             var voucher = frappe.model.get_new_doc('POS Closing Voucher');
             voucher.pos_profile = me.frm.doc.pos_profile;
@@ -686,6 +707,17 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             voucher.period_end_date = me.frm.doc.posting_date;
             voucher.posting_date = me.frm.doc.posting_date;
             frappe.set_route('Form', 'POS Closing Voucher', voucher.name);
+        });
+        
+        this.page.add_menu_item(__('Logout'), function() {
+            frappe.call({
+                method: "esag.esag.page.esagpos.esagpos.esag_pos_logout",
+                freeze: true,
+                args: {
+                    posprofiluser: localStorage.getItem("posprofiluser"),
+                    posprofil: localStorage.getItem("posprofil")
+                }
+            }).then(() => {location.reload();});
         });
     }
 
