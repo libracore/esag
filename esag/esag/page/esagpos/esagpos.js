@@ -138,6 +138,9 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                         this.payment.open_modal();
                     }
+                    if (value == __('Multi')) {
+                        frappe.msgprint("hier folgt noch ein PopUp");
+                    }
                 },
                 on_select_change: () => {
                     this.cart.numpad.set_inactive();
@@ -676,7 +679,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
     }
     };
 
-const [Qty,Disc,Rate,Del,Pay] = [__("Qty"), __('Disc'), __('Rate'), __('Del'), __('Pay')];
+const [Qty,Disc,DiscCHF,Rate,Del,Pay,MultiDisc] = [__("Qty"), __('Disc %'), __('CHF'), __('Rate'), __('Del'), __('Pay'), __('Multi')];
 
 class POSCart {
     constructor({frm, wrapper, events}) {
@@ -705,7 +708,7 @@ class POSCart {
                         <div class="list-item list-item--head">
                             <div class="list-item__content list-item__content--flex-1.5 text-muted">${__('Item Name')}</div>
                             <div class="list-item__content text-muted text-right">${__('Quantity')}</div>
-                            <div class="list-item__content text-muted text-right">${__('Discount')}</div>
+                            <div class="list-item__content text-muted text-right">${__('Discount')}<br>(% / CHF)</div>
                             <div class="list-item__content text-muted text-right">${__('Rate')}</div>
                         </div>
                         <div class="cart-items">
@@ -732,6 +735,7 @@ class POSCart {
                     <div class="col-sm-6 loyalty-program-section">
                         <div class="loyalty-program-field"> </div>
                     </div>
+                    <div class="hotkey-container col-sm-6"></div>
                 </div>
             </div>
         `);
@@ -947,7 +951,9 @@ class POSCart {
             disabled_btns.push(__('Rate'));
         }
         if(!this.frm.allow_edit_discount) {
-            disabled_btns.push(__('Disc'));
+            disabled_btns.push(__('Disc %'));
+            disabled_btns.push(__('CHF'));
+            disabled_btns.push(__('Multi'));
         }
         return disabled_btns;
     }
@@ -960,29 +966,29 @@ class POSCart {
         this.numpad = new NumberPad({
             button_array: [
                 [1, 2, 3, Qty],
-                [4, 5, 6, Disc],
+                [4, 5, 6, Disc, DiscCHF, MultiDisc],
                 [7, 8, 9, Rate],
                 [Del, 0, '.', Pay]
             ],
             add_class: pay_class,
-            disable_highlight: [Qty, Disc, Rate, Pay],
-            reset_btns: [Qty, Disc, Rate, Pay],
+            disable_highlight: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF],
+            reset_btns: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF],
             del_btn: Del,
             disable_btns: this.disable_numpad_control(),
             wrapper: this.wrapper.find('.number-pad-container'),
             onclick: (btn_value) => {
                 // on click
 
-                if (!this.selected_item && btn_value !== Pay) {
+                if (!this.selected_item && ![Pay, MultiDisc].includes(btn_value)) {
                     frappe.show_alert({
                         indicator: 'red',
                         message: __('Please select an item in the cart')
                     });
                     return;
                 }
-                if ([Qty, Disc, Rate].includes(btn_value)) {
+                if ([Qty, Disc, DiscCHF, Rate].includes(btn_value)) {
                     this.set_input_active(btn_value);
-                } else if (btn_value !== Pay) {
+                } else if (![Pay, MultiDisc].includes(btn_value)) {
                     if (!this.selected_item.active_field) {
                         frappe.show_alert({
                             indicator: 'red',
@@ -1002,7 +1008,6 @@ class POSCart {
                         const batch_no = this.selected_item.attr('data-batch-no');
                         const field = this.selected_item.active_field;
                         const value = this.numpad.get_value();
-
                         this.events.on_field_change(item_code, field, value, batch_no);
                     }
                 }
@@ -1013,7 +1018,7 @@ class POSCart {
     }
 
     set_input_active(btn_value) {
-        this.selected_item.removeClass('qty disc rate');
+        this.selected_item.removeClass('qty disc rate discCHF');
 
         this.numpad.set_active(btn_value);
         if (btn_value === Qty) {
@@ -1025,6 +1030,9 @@ class POSCart {
         } else if (btn_value == Rate) {
             this.selected_item.addClass('rate');
             this.selected_item.active_field = 'rate';
+        } else if (btn_value == DiscCHF) {
+            this.selected_item.addClass('discCHF');
+            this.selected_item.active_field = 'discount_amount';
         }
     }
 
@@ -1054,7 +1062,17 @@ class POSCart {
             const remove_class = indicator_class == 'green' ? 'red' : 'green';
 
             $item.find('.quantity input').val(item.qty);
-            $item.find('.discount').text(item.discount_percentage + '%');
+            var discount_info = ''
+            if (item.discount_percentage) {
+                discount_info = item.discount_percentage + '%';
+            } else {
+                if (item.discount_amount) {
+                    discount_info += 'CHF ' + item.discount_amount;
+                } else {
+                    discount_info += '-';
+                }
+            }
+            $item.find('.discount').text(discount_info);
             
             var item_rate = item.rate;
             var item_rate_txt = format_currency(item_rate, this.frm.doc.currency);
@@ -1086,6 +1104,17 @@ class POSCart {
             item_rate_txt = format_currency(item_rate, this.frm.doc.currency) + "\n(" + format_currency(item.rate, this.frm.doc.currency) + ")";
         } catch {}
         
+        var discount_info = ''
+        if (item.discount_percentage) {
+            discount_info = item.discount_percentage + '%';
+        } else {
+            if (item.discount_amount) {
+                discount_info += 'CHF ' + item.discount_amount;
+            } else {
+                discount_info += '-';
+            }
+        }
+        
         const indicator_class = (!is_stock_item || item.actual_qty >= item.qty) ? 'green' : 'red';
         const batch_no = item.batch_no || '';
 
@@ -1099,7 +1128,7 @@ class POSCart {
                     ${get_quantity_html(item.qty)}
                 </div>
                 <div class="discount list-item__content text-right">
-                    ${item.discount_percentage}%
+                    ${discount_info}
                 </div>
                 <div class="rate list-item__content text-right">
                     ${item_rate_txt}
