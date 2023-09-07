@@ -7,6 +7,8 @@ import frappe
 from frappe import _
 from frappe.utils.nestedset import get_root_of
 from erpnext.accounts.doctype.pos_profile.pos_profile import get_item_groups
+from frappe import auth
+from frappe.utils.password import get_decrypted_password, decrypt, encrypt
 
 @frappe.whitelist()
 def get_items(start, page_length, price_list, item_group, search_value="", pos_profile=None):
@@ -157,8 +159,6 @@ def search_serial_or_batch_or_barcode_number(search_value):
 
 @frappe.whitelist()
 def esag_pos_login(encrypted_hash):
-    from frappe import auth
-    from frappe.utils.password import decrypt
     try:
         decrypted_hash = decrypt(encrypted_hash)
         user = decrypted_hash.split("|")[0]
@@ -177,8 +177,6 @@ def esag_pos_login(encrypted_hash):
 
 @frappe.whitelist()
 def esag_pos_logout(posprofiluser, posprofil):
-    from frappe import auth
-    from frappe.utils.password import get_decrypted_password
     pwd = get_decrypted_password('POS Profile', posprofil)
     try:
         login_manager = frappe.auth.LoginManager()
@@ -188,3 +186,8 @@ def esag_pos_logout(posprofiluser, posprofil):
     except frappe.exceptions.AuthenticationError:
         frappe.clear_messages()
         return False
+
+@frappe.whitelist()
+def get_esag_pos_qr(user, pwd):
+    str_to_encrypt = "{0}|{1}".format(user, pwd)
+    return encrypt(str_to_encrypt)
