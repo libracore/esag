@@ -1,0 +1,6 @@
+"DocType: Item","Has warranty","Hat Garantie"
+"DocType: Item","Warranty","Garantie"
+"DocType: Sales Invoice","Date","Datum"
+"DocType: Sales Invoice","Street","Strasse"
+"DocType: Sales Invoice","City","Ort"
+"DocType: Sales Invoice","Signature","Unterschrift"
