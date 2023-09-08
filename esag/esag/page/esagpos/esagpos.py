@@ -173,7 +173,7 @@ def esag_pos_login(encrypted_hash):
             return False
     except:
         frappe.clear_messages()
-        frappe.throw(_('Invalid Token'))
+        return False
 
 @frappe.whitelist()
 def esag_pos_logout(posprofiluser, posprofil):

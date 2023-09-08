@@ -11,13 +11,24 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
     page.add_view('esagpos_login', frappe.render_template("esagpos_login", {}));
     $("#esag_pos_login_btn").click(function(){
         var encrypted_hash = $("#esag_pos_login_password").val();
+        $('[data-text="Login"]').removeClass("blue").addClass("green");
+        $('[data-text="Login"]').removeClass("red").addClass("green");
+        $('[data-text="Login"]').addClass("login-span");
+        $('.login-span').css('color', 'green');
+        $('[data-text="Login"]').html('Bitte warten');
         frappe.call({
                 method: "esag.esag.page.esagpos.esagpos.esag_pos_login",
                 freeze: true,
                 args: {
                     encrypted_hash: encrypted_hash
                 }
-            }).then(() => {location.reload();});
+            }).then((r) => {
+                if (r.message) {
+                    setTimeout(function(){location.reload();}, 1000);
+                } else {
+                    $('.page-card-head').html('<span class="indicator red" data-text="Login" style="color: red !important;">Ungültiger Token</span>');
+                }
+            });
     });
     
     frappe.db.get_value('POS Settings', {name: 'POS Settings'}, 'is_online', (r) => {
@@ -45,7 +56,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
 
         const assets = [
             'assets/erpnext/js/pos/clusterize.js',
-            'assets/erpnext/css/pos.css'
+            'assets/esag/css/esag_pos.css'
         ];
 
         frappe.require(assets, () => {
@@ -55,7 +66,10 @@ frappe.pages.esagpos.posClass = class PointOfSale {
 
     make() {
         return frappe.run_serially([
-            () => frappe.dom.freeze(__('Please wait')),
+            () => {
+                frappe.dom.freeze(__('Please wait'));
+                cur_page.page.page.set_view('esagpos_login');
+            },
             () => {
                 this.prepare_dom();
                 this.prepare_menu();
@@ -75,6 +89,9 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                 frappe.db.get_value('POS Profile',  this.frm.doc.pos_profile , 'user', (r) => {
                     if (r.user == frappe.session.user) {
                         cur_page.page.page.set_view('esagpos_login');
+                        this.page.clear_menu();
+                    } else {
+                        cur_page.page.page.set_view('main');
                     }
                     localStorage.setItem("posprofiluser", r.user);
                     localStorage.setItem("posprofil", this.frm.doc.pos_profile);
@@ -158,8 +175,15 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                         this.payment.open_modal();
                     }
-                    if (value == __('Multi')) {
-                        frappe.msgprint("hier folgt noch ein PopUp");
+                    if (value == 'logOut') {
+                        frappe.call({
+                            method: "esag.esag.page.esagpos.esagpos.esag_pos_logout",
+                            freeze: true,
+                            args: {
+                                posprofiluser: localStorage.getItem("posprofiluser"),
+                                posprofil: localStorage.getItem("posprofil")
+                            }
+                        }).then(() => {location.reload();});
                     }
                 },
                 on_select_change: () => {
@@ -456,14 +480,27 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         if (!this.frm.msgbox) {
             this.frm.msgbox = frappe.msgprint(
                 `<a class="btn btn-primary" onclick="cur_frm.print_preview.printit(true)" style="margin-right: 5px;">
-                    ${__('Print')}</a>
+                    ${__('Print Receipt')}</a>
+                <a class="btn btn-primary giftprint" style="margin-right: 5px;">
+                    ${__('Print Gift Receipt')}</a>
                 <a class="btn btn-default">
-                    ${__('New')}</a>`
-            );
+                    ${__('New Customer')}</a>`
+            , __("Receipt printing"));
 
             $(this.frm.msgbox.body).find('.btn-default').on('click', () => {
                 this.frm.msgbox.hide();
                 this.make_new_invoice();
+            })
+            $(this.frm.msgbox.body).find('.giftprint').on('click', () => {
+                frappe.db.get_value("POS Profile", cur_frm.doc.pos_profile, "printformat_for_gift_receipt", (r) => {
+                    var gift_printformat = r.printformat_for_gift_receipt;
+                    var w = window.open(frappe.urllib.get_full_url("/printview?"
+                    + "doctype=" + encodeURIComponent(cur_frm.doc.doctype)
+                    + "&name=" + encodeURIComponent(cur_frm.doc.name)
+                    + "&trigger_print=1"
+                    + "&format=" + encodeURIComponent(gift_printformat)
+                    + "&no_letterhead=0"));
+                })
             })
         }
     }
@@ -745,7 +782,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
     }
     };
 
-const [Qty,Disc,DiscCHF,Rate,Del,Pay,MultiDisc] = [__("Qty"), __('Disc %'), __('CHF'), __('Rate'), __('Del'), __('Pay'), __('Multi')];
+const [Qty,Disc,DiscCHF,Rate,Del,Pay,MultiDisc,placeHolder,logOut] = [__("Qty"), __('%'), __('CHF'), __('Rate'), __('Del'), __('Pay'), __('10%'), 'placeHolder', 'logOut'];
 
 class POSCart {
     constructor({frm, wrapper, events}) {
@@ -1017,9 +1054,9 @@ class POSCart {
             disabled_btns.push(__('Rate'));
         }
         if(!this.frm.allow_edit_discount) {
-            disabled_btns.push(__('Disc %'));
+            disabled_btns.push(__('%'));
             disabled_btns.push(__('CHF'));
-            disabled_btns.push(__('Multi'));
+            disabled_btns.push(__('10%'));
         }
         return disabled_btns;
     }
@@ -1029,32 +1066,37 @@ class POSCart {
 
         var pay_class = {}
         pay_class[__('Pay')]='brand-primary'
+        pay_class['logOut']='brand-danger'
         this.numpad = new NumberPad({
             button_array: [
-                [1, 2, 3, Qty],
-                [4, 5, 6, Disc, DiscCHF, MultiDisc],
-                [7, 8, 9, Rate],
-                [Del, 0, '.', Pay]
+                [1, 2, 3, placeHolder, logOut],
+                [4, 5, 6, DiscCHF, Disc],
+                [7, 8, 9, Qty, MultiDisc],
+                [Del, 0, '.', Rate, Pay]
             ],
             add_class: pay_class,
-            disable_highlight: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF],
+            disable_highlight: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF, placeHolder, logOut],
             reset_btns: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF],
             del_btn: Del,
             disable_btns: this.disable_numpad_control(),
             wrapper: this.wrapper.find('.number-pad-container'),
             onclick: (btn_value) => {
                 // on click
-
-                if (!this.selected_item && ![Pay, MultiDisc].includes(btn_value)) {
+                if (btn_value == 'placeHolder') {
+                    // placeHolder BTN --> no action
+                    return;
+                }
+                if (!this.selected_item && ![Pay, MultiDisc, logOut].includes(btn_value)) {
                     frappe.show_alert({
                         indicator: 'red',
                         message: __('Please select an item in the cart')
                     });
                     return;
                 }
+                
                 if ([Qty, Disc, DiscCHF, Rate].includes(btn_value)) {
                     this.set_input_active(btn_value);
-                } else if (![Pay, MultiDisc].includes(btn_value)) {
+                } else if (![Pay, MultiDisc, logOut].includes(btn_value)) {
                     if (!this.selected_item.active_field) {
                         frappe.show_alert({
                             indicator: 'red',
@@ -1074,6 +1116,15 @@ class POSCart {
                         const batch_no = this.selected_item.attr('data-batch-no');
                         const field = this.selected_item.active_field;
                         const value = this.numpad.get_value();
+                        this.events.on_field_change(item_code, field, value, batch_no);
+                    }
+                } else if (btn_value == MultiDisc) {
+                    for (var i = 0; i < cur_pos.cart.frm.doc.items.length; i++) {
+                        var item = cur_pos.cart.frm.doc.items[i];
+                        var item_code = item.item_code;
+                        var batch_no = '';
+                        var field = 'discount_percentage';
+                        var value = 10;
                         this.events.on_field_change(item_code, field, value, batch_no);
                     }
                 }
@@ -1669,7 +1720,13 @@ class NumberPad {
         }
 
         function get_col(col) {
-            return `<div class="num-col" data-value="${col}"><div>${col}</div></div>`;
+            if (!['placeHolder', 'logOut'].includes(col)) {
+                return `<div class="num-col" data-value="${col}"><div>${col}</div></div>`;
+            } else if (col == 'placeHolder') {
+                return `<div class="num-col" data-value="${col}"><div>&nbsp;</div></div>`;
+            } else if (col == 'logOut') {
+                return `<div class="num-col" data-value="logOut"><div><i class="fa fa-lock"></i></div></div>`;
+            }
         }
 
         this.set_class();
@@ -2005,7 +2062,6 @@ class Payment {
     update_payment_amount() {
         var me = this;
         $.each(this.frm.doc.payments, function(i, data) {
-            console.log("setting the ", data.mode_of_payment, " for the value", data.amount);
             me.dialog.set_value(data.mode_of_payment, data.amount);
         });
     }
