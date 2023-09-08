@@ -477,32 +477,37 @@ frappe.pages.esagpos.posClass = class PointOfSale {
     }
 
     set_primary_action_in_modal() {
-        if (!this.frm.msgbox) {
-            this.frm.msgbox = frappe.msgprint(
-                `<a class="btn btn-primary" onclick="cur_frm.print_preview.printit(true)" style="margin-right: 5px;">
-                    ${__('Print Receipt')}</a>
-                <a class="btn btn-primary giftprint" style="margin-right: 5px;">
-                    ${__('Print Gift Receipt')}</a>
-                <a class="btn btn-default">
-                    ${__('New Customer')}</a>`
-            , __("Receipt printing"));
+        // ******
+        // aktuell deaktiviert, hier muss der Quittungs Direkt-Druck erfolgen
+        // ******
+        
+        //~ if (!this.frm.msgbox) {
+            //~ this.frm.msgbox = frappe.msgprint(
+                //~ `<a class="btn btn-primary" onclick="cur_frm.print_preview.printit(true)" style="margin-right: 5px;">
+                    //~ ${__('Print Receipt')}</a>
+                //~ <a class="btn btn-primary giftprint" style="margin-right: 5px;">
+                    //~ ${__('Print Gift Receipt')}</a>
+                //~ <a class="btn btn-default">
+                    //~ ${__('New Customer')}</a>`
+            //~ , __("Receipt printing"));
 
-            $(this.frm.msgbox.body).find('.btn-default').on('click', () => {
-                this.frm.msgbox.hide();
-                this.make_new_invoice();
-            })
-            $(this.frm.msgbox.body).find('.giftprint').on('click', () => {
-                frappe.db.get_value("POS Profile", cur_frm.doc.pos_profile, "printformat_for_gift_receipt", (r) => {
-                    var gift_printformat = r.printformat_for_gift_receipt;
-                    var w = window.open(frappe.urllib.get_full_url("/printview?"
-                    + "doctype=" + encodeURIComponent(cur_frm.doc.doctype)
-                    + "&name=" + encodeURIComponent(cur_frm.doc.name)
-                    + "&trigger_print=1"
-                    + "&format=" + encodeURIComponent(gift_printformat)
-                    + "&no_letterhead=0"));
-                })
-            })
-        }
+            //~ $(this.frm.msgbox.body).find('.btn-default').on('click', () => {
+                //~ this.frm.msgbox.hide();
+                //~ this.make_new_invoice();
+            //~ })
+            //~ $(this.frm.msgbox.body).find('.giftprint').on('click', () => {
+                //~ frappe.db.get_value("POS Profile", cur_frm.doc.pos_profile, "printformat_for_gift_receipt", (r) => {
+                    //~ var gift_printformat = r.printformat_for_gift_receipt;
+                    //~ var w = window.open(frappe.urllib.get_full_url("/printview?"
+                    //~ + "doctype=" + encodeURIComponent(cur_frm.doc.doctype)
+                    //~ + "&name=" + encodeURIComponent(cur_frm.doc.name)
+                    //~ + "&trigger_print=1"
+                    //~ + "&format=" + encodeURIComponent(gift_printformat)
+                    //~ + "&no_letterhead=0"));
+                //~ })
+            //~ })
+        //~ }
+        this.make_new_invoice();
     }
 
     change_pos_profile() {
