@@ -719,6 +719,65 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             )
         });
         
+        this.page.add_menu_item(__("Receipt printing"), function () {
+            var d = new frappe.ui.Dialog({
+                'title': __('Receipt printing'),
+                'fields': [
+                    {'fieldname': 'receipt', 'fieldtype': 'Link', 'label': __('Receipt'), 'options': 'Sales Invoice', 'reqd': 1,
+                        'get_query': function() { return { filters: {'is_pos':1 } } }
+                    },
+                    {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
+                    {'fieldname': 'a4', 'fieldtype': 'Button', 'label': __('A4 Normal'),
+                        'click': function() {
+                            var receipt = d.get_value('receipt');
+                            if (receipt) {
+                                frappe.db.get_value("POS Profile", cur_frm.doc.pos_profile, "print_format_for_online", (r) => {
+                                    var printformat = r.print_format_for_online;
+                                    var w = window.open(frappe.urllib.get_full_url("/printview?"
+                                    + "doctype=" + encodeURIComponent("Sales Invoice")
+                                    + "&name=" + encodeURIComponent(receipt)
+                                    + "&trigger_print=1"
+                                    + "&format=" + encodeURIComponent(printformat)
+                                    + "&no_letterhead=0"));
+                                })
+                            } else {
+                                frappe.msgprint("Bitte eine Quittung auswählen");
+                            }
+                        }
+                    },
+                    {'fieldname': 'a4_gift', 'fieldtype': 'Button', 'label': __('A4 Geschenk'),
+                        'click': function() {
+                            var receipt = d.get_value('receipt');
+                            if (receipt) {
+                                frappe.db.get_value("POS Profile", cur_frm.doc.pos_profile, "printformat_for_gift_receipt", (r) => {
+                                    var gift_printformat = r.printformat_for_gift_receipt;
+                                    var w = window.open(frappe.urllib.get_full_url("/printview?"
+                                    + "doctype=" + encodeURIComponent("Sales Invoice")
+                                    + "&name=" + encodeURIComponent(receipt)
+                                    + "&trigger_print=1"
+                                    + "&format=" + encodeURIComponent(gift_printformat)
+                                    + "&no_letterhead=0"));
+                                })
+                            } else {
+                                frappe.msgprint("Bitte eine Quittung auswählen");
+                            }
+                        }
+                    },
+                    {'fieldname': 'thermo', 'fieldtype': 'Button', 'label': __('Thermo'),
+                        'click': function() {
+                            var receipt = d.get_value('receipt');
+                            if (receipt) {
+                                frappe.msgprint("TBD!");
+                            } else {
+                                frappe.msgprint("Bitte eine Quittung auswählen");
+                            }
+                        }
+                    }
+                ]
+            });
+            d.show();
+        });
+        
         this.page.add_menu_item(__("Stock Summary"), function () {
             frappe.set_route('stock-balance');
         });
