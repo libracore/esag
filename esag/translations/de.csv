@@ -1,0 +1,13 @@
+DocType: Item,Has warranty,Hat Garantie
+DocType: Item,Warranty,Garantie
+DocType: Sales Invoice,Date,Datum
+DocType: Sales Invoice,Street,Strasse
+DocType: Sales Invoice,City,Ort
+DocType: Sales Invoice,Signature,Unterschrift
+DocType: User,POS QR Generation,Erstellung POS QR
+DocType: User,Generate,Erstellen
+DocType: Sales Invoice,New Customer,Neuer Kunde
+DocType: Sales Invoice,Print Gift Receipt,Drucke Geschenk Quittung
+DocType: Sales Invoice,Print Receipt,Drucke Quittung
+DocType: Sales Invoice,Receipt printing,Quittungs Druck
+DocType: Sales Invoice,Rate,Preis
