@@ -11,3 +11,6 @@ DocType: Sales Invoice,Print Gift Receipt,Drucke Geschenk Quittung
 DocType: Sales Invoice,Print Receipt,Drucke Quittung
 DocType: Sales Invoice,Receipt printing,Quittungs Druck
 DocType: Sales Invoice,Rate,Preis
+DocType: Item,Article description,Artikelbeschreibung
+DocType: Item,Max. 23 characters,Max. 23 Zeichen
+DocType: Item,Max. 30 characters,Max. 30 Zeichen
