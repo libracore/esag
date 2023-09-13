@@ -778,7 +778,12 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         'click': function() {
                             var receipt = d.get_value('receipt');
                             if (receipt) {
-                                frappe.msgprint("TBD!");
+                                frappe.call({
+                                    method: "esag.esag.page.esagpos.esagpos.receipt_print",
+                                    args: {
+                                        sinv: receipt
+                                    }
+                                })
                             } else {
                                 frappe.msgprint("Bitte eine Quittung auswählen");
                             }
