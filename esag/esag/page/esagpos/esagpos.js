@@ -17,18 +17,18 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
         $('.login-span').css('color', 'green');
         $('[data-text="Login"]').html('Bitte warten');
         frappe.call({
-                method: "esag.esag.page.esagpos.esagpos.esag_pos_login",
-                freeze: true,
-                args: {
-                    encrypted_hash: encrypted_hash
-                }
-            }).then((r) => {
-                if (r.message) {
-                    setTimeout(function(){location.reload();}, 1000);
-                } else {
-                    $('.page-card-head').html('<span class="indicator red" data-text="Login" style="color: red !important;">Ungültiger Token</span>');
-                }
-            });
+            method: "esag.esag.page.esagpos.esagpos.esag_pos_login",
+            freeze: true,
+            args: {
+                encrypted_hash: encrypted_hash
+            }
+        }).then((r) => {
+            if (r.message) {
+                setTimeout(function(){location.reload();}, 1000);
+            } else {
+                $('.page-card-head').html('<span class="indicator red" data-text="Login" style="color: red !important;">Ungültiger Token</span>');
+            }
+        });
     });
     
     frappe.db.get_value('POS Settings', {name: 'POS Settings'}, 'is_online', (r) => {
@@ -463,6 +463,12 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         this.frm.savesubmit()
             .then((r) => {
                 if (r && r.doc) {
+                    frappe.call({
+                        method: "esag.esag.page.esagpos.esagpos.receipt_print",
+                        args: {
+                            sinv: r.doc.name
+                        }
+                    })
                     this.frm.doc.docstatus = r.doc.docstatus;
                     frappe.show_alert({
                         indicator: 'green',
