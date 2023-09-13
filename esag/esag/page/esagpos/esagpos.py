@@ -15,157 +15,195 @@ import json
 from frappe.utils import flt
 
 @frappe.whitelist()
-def receipt_print(sinv=None):
-    # get the sales invoice and taxes per item
-    if not sinv:
+def receipt_print(sinv=None, test_print=False):
+    try:
+        if test_print:
+            # connect printer
+            printer_ip = frappe.db.get_value("POS Profile", sinv.pos_profile, 'receipt_printer_ip')
+            if not printer_ip:
+                return False
+            try:
+                p = connect_printer(printer_ip)
+                p.charcode('USA')
+                p.set(align='left')
+                p.text("------------------------------------------------\n")
+                p.set(align='center')
+                p.text("Testdruck erfolgreich\n")
+                p.set(align='left')
+                p.text("------------------------------------------------")
+                p.cut()
+                return 1
+            except Exception as err:
+                frappe.log_error("{0}".format(err), "connect printer failed")
+                return False
+        
+        if not sinv:
+            # no sinv no receipt
+            return
+        
+        sinv = frappe.get_doc("Sales Invoice", sinv)
+        
+        if not sinv.pos_profile:
+            # no pos profile no receipt
+            return
+        
+        # connect printer
+        printer_ip = frappe.db.get_value("POS Profile", sinv.pos_profile, 'receipt_printer_ip')
+        if not printer_ip:
+            return
+        try:
+            p = connect_printer(printer_ip)
+        except Exception as err:
+            frappe.log_error("{0}".format(err), "connect printer failed")
+            return
+        
+        itemised_tax = _get_itemised_tax(sinv)
+        mwst_dict = {}
+        mwst_dict_keys = []
+        mwst_code_loop = 1
+        mwst_code_dict = {}
+        items = []
+        
+        for sinv_item in sinv.items:
+            item_base = frappe.get_doc("Item", sinv_item.item_code)
+            tax_amount = 0
+            if itemised_tax:
+                if sinv_item.item_code in itemised_tax:
+                    if sinv_item.item_tax_template in itemised_tax[sinv_item.item_code]:
+                        tax_amount += itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
+                        
+                        mwst_tax_amount = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
+                        mwst_total_amount = sinv_item.amount + (mwst_tax_amount * sinv_item.qty)
+                        tax_rate = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_rate']
+                        mwst_dict_keys.append(tax_rate)
+                        if tax_rate in mwst_dict:
+                            mwst_dict[tax_rate]['total'] += mwst_total_amount
+                            mwst_dict[tax_rate]['mwst'] += mwst_tax_amount
+                        else:
+                            mwst_dict[tax_rate] = {
+                                'total': mwst_total_amount,
+                                'mwst': mwst_tax_amount,
+                                'mwst_code': mwst_code_loop
+                            }
+                            mwst_code_dict[sinv_item.item_tax_template] = mwst_code_loop
+                            mwst_code_loop += 1
+            
+            items.append({
+                'item_name': sinv_item.item_name,
+                'qty': int(sinv_item.qty),
+                'rate': sinv_item.rate + tax_amount,
+                'total': sinv_item.amount + (tax_amount * sinv_item.qty),
+                'garantie': True if item_base.has_warranty else False,
+                'garantie_dauer': item_base.warranty,
+                'mwst_code': mwst_code_dict[sinv_item.item_tax_template]
+            })
+        
+        # default codepage
+        p.charcode('USA')
+        
+        # Header
+        p.set(align='center')
+        p.image('/home/frappe/frappe-bench/apps/esag/esag/esag/page/esagpos/ETH_Store_Logo.png')
+        p.set(align='left')
+        p.text("------------------------------------------------\n")
+        p.set(align='center')
+        p.text("ETH Store AG\nMerchandise Store\nClausiusstrasse 2\n8006 Zürich\nTel. +41 44 633 83 38\n")
+        p.qr("https://www.eth-store.ch/", size=4)
+        p.set(align='left')
+        p.text("------------------------------------------------\n\n")
+        
+        # Items Table
+        p.set(text_type="B")
+        p.text("Artikel                Menge   Preis   Total   C\n")
+        p.set(text_type="NORMAL")
+        
+        
+        
+        for item_dict in items:
+            item = item_dict['item_name']
+            if len(item) > 21:
+                item = item[:21] + "  "
+            else:
+                item = item.ljust(23, " ")
+            
+            qty = str(item_dict['qty'])
+            if len(item) > 7:
+                qty = qty[:7] + " "
+            else:
+                qty = qty.ljust(8, " ")
+            
+            rate = str(frappe.utils.fmt_money(item_dict['rate']))
+            if len(rate) > 7:
+                rate = rate[:7] + " "
+            else:
+                rate = rate.ljust(8, " ")
+            
+            total = str(frappe.utils.fmt_money(item_dict['total']))
+            if len(total) > 7:
+                total = total[:7] + " "
+            else:
+                total = total.ljust(8, " ")
+            
+            mwst_code = str(item_dict['mwst_code'])
+            
+            p.text("{0}{1}{2}{3}{4}\n".format(item, qty, rate, total, mwst_code))
+            
+            garantie = item_dict['garantie']
+            if garantie:
+                garantie_dauer = item_dict['garantie_dauer']
+                p.text("{0} Garantie\n\n".format(garantie_dauer))
+            else:
+                p.text("\n")
+        
+        total_amount = str(frappe.utils.fmt_money(sinv.grand_total))
+        total_string = "TOTAL CHF"
+        
+        if (len(total_amount) + len(total_string)) < 46:
+            adjust = 46 - len(total_amount)
+            total_string = total_string.ljust(adjust, " ")
+        
+        p.set(text_type="B")
+        p.text("{0}{1}\n".format(total_string, total_amount))
+        p.set(text_type="NORMAL")
+        p.text("------------------------------------------------\n")
+        
+        '''
+            !!!
+            Hier müsste noch EFT erfolgen...
+            !!!
+        '''
+        
+        # MWST
+        p.text("ETH Store AG,        CHE-264.182.531 MWST\n")
+        if len(mwst_dict_keys) > 0:
+            p.text("Code    MWST         Total   MWST\n")
+        for mwst_satz in mwst_dict_keys:
+            mwst_code = str(mwst_dict[mwst_satz]['mwst_code']).ljust(8, " ")
+            _mwst_satz = str(str(mwst_satz) + "%").ljust(13, " ")
+            _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(8, " ")
+            _mwst = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['mwst'])).ljust(4, " ")
+            p.text("{mwst_code}{_mwst_satz}{_mwst_total}{_mwst}\n".format(mwst_code=mwst_code, _mwst_satz=_mwst_satz, _mwst_total=_mwst_total, _mwst=_mwst))
+        
+        p.text("\n\n\n")
+        
+        # MA Infos
+        p.text("Es bediente Sie: {0}\n".format(frappe.db.get_value("User", sinv.owner, 'full_name')))
+        p.text("Herzlichen Dank für Ihren Einkauf!\n\n")
+        
+        # RG Details
+        p.text("Kunden-Nr.           {0}\n".format(sinv.customer))
+        p.text("Rechnungs-Nr.        {0}\n".format(sinv.name))
+        p.text("Datum/Uhrzeit:       {0}\n\n".format(get_datetime().strftime("%d.%m.%Y / %H:%M")))
+        p.set(align='center')
+        p.qr("{0}".format(sinv.name), size=5)
+        
+        p.cut()
+    except Exception as err:
+        frappe.log_error("{0}".format(err), "receipt_print() failed")
         return
-    sinv = frappe.get_doc("Sales Invoice", sinv)
-    itemised_tax = _get_itemised_tax(sinv)
-    mwst_dict = {}
-    mwst_dict_keys = []
-    
-    # connect printer
-    printer_ip = frappe.db.get_value("POS Profile", sinv.pos_profile, 'receipt_printer_ip')
-    if not printer_ip:
-        return
-    p = printer.Network(printer_ip)
-    
-    # default codepage
-    p.charcode('USA')
-    
-    # Header
-    p.set(align='center')
-    p.image('/home/frappe/frappe-bench/apps/esag/esag/esag/page/esagpos/ETH_Store_Logo.png')
-    p.set(align='left')
-    p.text("------------------------------------------------\n")
-    p.set(align='center')
-    p.text("ETH Store AG\nMerchandise Store\nClausiusstrasse 2\n8006 Zürich\nTel. +41 44 633 83 38\n")
-    p.qr("https://www.eth-store.ch/", size=4)
-    p.set(align='left')
-    p.text("------------------------------------------------\n\n")
-    
-    # Items Table
-    p.set(text_type="B")
-    p.text("Artikel              Menge    Preis      Total\n")
-    p.set(text_type="NORMAL")
-    
-    items = []
-    
-    for sinv_item in sinv.items:
-        item_base = frappe.get_doc("Item", sinv_item.item_code)
-        tax_amount = 0
-        if itemised_tax:
-            if sinv_item.item_code in itemised_tax:
-                if sinv_item.item_tax_template in itemised_tax[sinv_item.item_code]:
-                    tax_amount += itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
-                    
-                    mwst_tax_amount = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
-                    mwst_total_amount = sinv_item.amount + (mwst_tax_amount * sinv_item.qty)
-                    tax_rate = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_rate']
-                    mwst_dict_keys.append(tax_rate)
-                    if tax_rate in mwst_dict:
-                        mwst_dict[tax_rate]['total'] += mwst_total_amount
-                        mwst_dict[tax_rate]['mwst'] += mwst_tax_amount
-                    else:
-                        mwst_dict[tax_rate] = {
-                            'total': mwst_total_amount,
-                            'mwst': mwst_tax_amount
-                        }
-        
-        items.append({
-            'item_name': sinv_item.item_name,
-            'qty': int(sinv_item.qty),
-            'rate': sinv_item.rate + tax_amount,
-            'total': sinv_item.amount + (tax_amount * sinv_item.qty),
-            'garantie': True if item_base.has_warranty else False,
-            'garantie_dauer': item_base.warranty
-        })
-    
-    for item_dict in items:
-        item = item_dict['item_name']
-        if len(item) < 19:
-            item = item.ljust(21, " ")
-        elif len(item) > 19:
-            item = item[:19] + "  "
-        else:
-            item = item + "  "
-        
-        qty = str(item_dict['qty'])
-        if len(qty) < 5:
-            qty = qty.ljust(9, " ")
-        elif len(item) > 5:
-            qty = qty[:5] + "    "
-        else:
-            qty = qty + "    "
-        
-        rate = str(frappe.utils.fmt_money(item_dict['rate']))
-        if len(rate) < 9:
-            rate = rate.ljust(11, " ")
-        elif len(rate) > 9:
-            rate = rate[:9] + "  "
-        else:
-            rate = rate + "  "
-        
-        total = str(frappe.utils.fmt_money(item_dict['total']))
-        if len(total) < 7:
-            total = total.ljust(7, " ")
-        elif len(total) > 7:
-            total = total[:7]
-        
-        p.text("{0}{1}{2}{3}\n".format(item, qty, rate, total))
-        
-        garantie = item_dict['garantie']
-        if garantie:
-            garantie_dauer = item_dict['garantie_dauer']
-            p.text("{0} Garantie\n\n".format(garantie_dauer))
-        else:
-            p.text("\n")
-    
-    total_amount = str(frappe.utils.fmt_money(sinv.grand_total))
-    total_string = "TOTAL CHF"
-    
-    if (len(total_amount) + len(total_string)) < 48:
-        adjust = 48 - len(total_amount)
-        total_string = total_string.ljust(adjust, " ")
-    
-    p.set(text_type="B")
-    p.text("{0}{1}\n".format(total_string, total_amount))
-    p.set(text_type="NORMAL")
-    p.text("------------------------------------------------\n")
-    
-    '''
-        !!!
-        Hier müsste noch EFT erfolgen...
-        !!!
-    '''
-    
-    # MWST
-    p.text("ETH Store AG,        CHE-264.182.531 MWST\n")
-    if len(mwst_dict_keys) > 0:
-        p.text("Code    MWST         Total   MWST\n")
-    loop = 1
-    for mwst_satz in mwst_dict_keys:
-        _loop = str(loop).ljust(8, " ")
-        _mwst_satz = str(str(mwst_satz) + "%").ljust(13, " ")
-        _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(8, " ")
-        _mwst = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['mwst'])).ljust(4, " ")
-        p.text("{_loop}{_mwst_satz}{_mwst_total}{_mwst}\n".format(_loop=_loop, _mwst_satz=_mwst_satz, _mwst_total=_mwst_total, _mwst=_mwst))
-        loop += 1
-    
-    p.text("\n\n\n")
-    
-    # MA Infos
-    p.text("Es bediente Sie: {0}\n".format(frappe.db.get_value("User", sinv.owner, 'full_name')))
-    p.text("Herzlichen Dank für Ihren Einkauf!\n\n")
-    
-    # RG Details
-    p.text("Kunden-Nr.           {0}\n".format(sinv.customer))
-    p.text("Rechnungs-Nr.        {0}\n".format(sinv.name))
-    p.text("Datum/Uhrzeit:       {0}\n\n".format(get_datetime().strftime("%d.%m.%Y / %H:%M")))
-    p.set(align='center')
-    p.qr("{0}".format(sinv.name), size=5)
-    
-    p.cut()
+
+def connect_printer(printer_ip):
+    return printer.Network(printer_ip)
 
 @frappe.whitelist()
 def get_items(start, page_length, price_list, item_group, search_value="", pos_profile=None):
