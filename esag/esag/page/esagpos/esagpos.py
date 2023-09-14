@@ -19,7 +19,7 @@ def receipt_print(sinv=None, test_print=False):
     try:
         if test_print:
             # connect printer
-            printer_ip = frappe.db.get_value("POS Profile", sinv.pos_profile, 'receipt_printer_ip')
+            printer_ip = test_print
             if not printer_ip:
                 return False
             try:
@@ -73,7 +73,7 @@ def receipt_print(sinv=None, test_print=False):
                         tax_amount += itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
                         
                         mwst_tax_amount = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_amount']
-                        mwst_total_amount = sinv_item.amount + (mwst_tax_amount * sinv_item.qty)
+                        mwst_total_amount = sinv_item.amount + mwst_tax_amount
                         tax_rate = itemised_tax[sinv_item.item_code][sinv_item.item_tax_template]['tax_rate']
                         mwst_dict_keys.append(tax_rate)
                         if tax_rate in mwst_dict:
@@ -91,8 +91,8 @@ def receipt_print(sinv=None, test_print=False):
             items.append({
                 'item_name': sinv_item.item_name,
                 'qty': int(sinv_item.qty),
-                'rate': sinv_item.rate + tax_amount,
-                'total': sinv_item.amount + (tax_amount * sinv_item.qty),
+                'rate': sinv_item.rate + (tax_amount / sinv_item.qty),
+                'total': sinv_item.amount + tax_amount,
                 'garantie': True if item_base.has_warranty else False,
                 'garantie_dauer': item_base.warranty,
                 'mwst_code': mwst_code_dict[sinv_item.item_tax_template]
@@ -114,35 +114,35 @@ def receipt_print(sinv=None, test_print=False):
         
         # Items Table
         p.set(text_type="B")
-        p.text("Artikel                Menge   Preis   Total   C\n")
+        p.text("Artikel              Menge   Preis    Total    C\n")
         p.set(text_type="NORMAL")
         
         
         
         for item_dict in items:
             item = item_dict['item_name']
-            if len(item) > 21:
-                item = item[:21] + "  "
+            if len(item) > 19:
+                item = item[:19] + "  "
             else:
-                item = item.ljust(23, " ")
+                item = item.ljust(21, " ")
             
             qty = str(item_dict['qty'])
-            if len(item) > 7:
+            if len(qty) > 7:
                 qty = qty[:7] + " "
             else:
                 qty = qty.ljust(8, " ")
             
             rate = str(frappe.utils.fmt_money(item_dict['rate']))
-            if len(rate) > 7:
-                rate = rate[:7] + " "
+            if len(rate) > 8:
+                rate = rate[:8] + " "
             else:
-                rate = rate.ljust(8, " ")
+                rate = rate.ljust(9, " ")
             
             total = str(frappe.utils.fmt_money(item_dict['total']))
-            if len(total) > 7:
-                total = total[:7] + " "
+            if len(total) > 8:
+                total = total[:8] + " "
             else:
-                total = total.ljust(8, " ")
+                total = total.ljust(9, " ")
             
             mwst_code = str(item_dict['mwst_code'])
             
@@ -158,8 +158,8 @@ def receipt_print(sinv=None, test_print=False):
         total_amount = str(frappe.utils.fmt_money(sinv.grand_total))
         total_string = "TOTAL CHF"
         
-        if (len(total_amount) + len(total_string)) < 46:
-            adjust = 46 - len(total_amount)
+        if (len(total_amount) + len(total_string)) < 43:
+            adjust = 43 - len(total_amount)
             total_string = total_string.ljust(adjust, " ")
         
         p.set(text_type="B")
@@ -167,24 +167,25 @@ def receipt_print(sinv=None, test_print=False):
         p.set(text_type="NORMAL")
         p.text("------------------------------------------------\n")
         
-        '''
-            !!!
-            Hier müsste noch EFT erfolgen...
-            !!!
-        '''
+        # Zahlungsdetails
+        for payment_method in sinv.payments:
+            pm = str(payment_method.mode_of_payment).ljust(21, " ")
+            pm_amount = str(frappe.utils.fmt_money(payment_method.amount))
+            p.text("{0}{1}\n".format(pm, pm_amount))
+        p.text("------------------------------------------------\n")
         
         # MWST
         p.text("ETH Store AG,        CHE-264.182.531 MWST\n")
         if len(mwst_dict_keys) > 0:
-            p.text("Code    MWST         Total   MWST\n")
+            p.text("Code    MWST         Total     MWST\n")
         for mwst_satz in mwst_dict_keys:
             mwst_code = str(mwst_dict[mwst_satz]['mwst_code']).ljust(8, " ")
             _mwst_satz = str(str(mwst_satz) + "%").ljust(13, " ")
-            _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(8, " ")
+            _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(10, " ")
             _mwst = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['mwst'])).ljust(4, " ")
             p.text("{mwst_code}{_mwst_satz}{_mwst_total}{_mwst}\n".format(mwst_code=mwst_code, _mwst_satz=_mwst_satz, _mwst_total=_mwst_total, _mwst=_mwst))
         
-        p.text("\n\n\n")
+        p.text("\n\n")
         
         # MA Infos
         p.text("Es bediente Sie: {0}\n".format(frappe.db.get_value("User", sinv.owner, 'full_name')))
@@ -193,7 +194,7 @@ def receipt_print(sinv=None, test_print=False):
         # RG Details
         p.text("Kunden-Nr.           {0}\n".format(sinv.customer))
         p.text("Rechnungs-Nr.        {0}\n".format(sinv.name))
-        p.text("Datum/Uhrzeit:       {0}\n\n".format(get_datetime().strftime("%d.%m.%Y / %H:%M")))
+        p.text("Datum / Uhrzeit:     {0}\n\n".format(sinv.creation.strftime("%d.%m.%Y / %H:%M")))
         p.set(align='center')
         p.qr("{0}".format(sinv.name), size=5)
         

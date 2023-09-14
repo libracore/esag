@@ -3,7 +3,7 @@ frappe.ui.form.on('POS Profile', {
         frappe.call({
             method: "esag.esag.page.esagpos.esagpos.receipt_print",
             args: {
-                test_print: true
+                test_print: cur_frm.doc.receipt_printer_ip
             },
             callback: function(r) {
                 if (r.message == 1) {
