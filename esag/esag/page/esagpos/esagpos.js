@@ -857,7 +857,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
     }
     };
 
-const [Qty,Disc,DiscCHF,Rate,Del,Pay,MultiDisc,placeHolder,logOut] = [__("Qty"), __('%'), __('CHF'), __('Rate'), __('Del'), __('Pay'), __('10%'), 'placeHolder', 'logOut'];
+const [Qty,Disc,DiscCHF,Rate,Del,Pay,MultiDisc,scanBarcode,logOut] = [__("Qty"), __('%'), __('CHF'), __('Rate'), __('Del'), __('Pay'), __('10%'), 'scanBarcode', 'logOut'];
 
 class POSCart {
     constructor({frm, wrapper, events}) {
@@ -879,41 +879,47 @@ class POSCart {
     make_dom() {
         this.wrapper.append(`
             <div class="pos-cart">
-                <div class="customer-field">
-                </div>
-                <div class="cart-wrapper">
-                    <div class="list-item-table">
-                        <div class="list-item list-item--head">
-                            <div class="list-item__content list-item__content--flex-1.5 text-muted">${__('Item Name')}</div>
-                            <div class="list-item__content text-muted text-right">${__('Quantity')}</div>
-                            <div class="list-item__content text-muted text-right">${__('Discount')}<br>(% / CHF)</div>
-                            <div class="list-item__content text-muted text-right">${__('Rate')}</div>
-                        </div>
-                        <div class="cart-items">
-                            <div class="empty-state">
-                                <span>${__('No Items added to cart')}</span>
-                            </div>
-                        </div>
-                        <div class="taxes-and-totals">
-                            ${this.get_taxes_and_totals()}
-                        </div>
-                        <div class="discount-amount">`+
-                        (!this.frm.allow_edit_discount ? `` : `${this.get_discount_amount()}`)+
-                        `</div>
-                        <div class="grand-total">
-                            ${this.get_grand_total()}
-                        </div>
-                        <div class="quantity-total">
-                            ${this.get_item_qty_total()}
-                        </div>
+                <div class="row">
+                    <div class="customer-field col-sm-6">
                     </div>
                 </div>
                 <div class="row">
-                    <div class="number-pad-container col-sm-6"></div>
-                    <div class="col-sm-6 loyalty-program-section">
-                        <div class="loyalty-program-field"> </div>
+                    <div class="col-sm-6">
+                        <div class="cart-wrapper">
+                            <div class="list-item-table">
+                                <div class="list-item list-item--head">
+                                    <div class="list-item__content list-item__content--flex-1.5 text-muted">${__('Item Name')}</div>
+                                    <div class="list-item__content text-muted text-right">${__('Quantity')}</div>
+                                    <div class="list-item__content text-muted text-right">${__('Discount')}<br>(% / CHF)</div>
+                                    <div class="list-item__content text-muted text-right">${__('Rate')}</div>
+                                </div>
+                                <div class="cart-items">
+                                    <div class="empty-state">
+                                        <span>${__('No Items added to cart')}</span>
+                                    </div>
+                                </div>
+                                <div class="taxes-and-totals">
+                                    ${this.get_taxes_and_totals()}
+                                </div>
+                                <div class="discount-amount">`+
+                                (!this.frm.allow_edit_discount ? `` : `${this.get_discount_amount()}`)+
+                                `</div>
+                                <div class="grand-total">
+                                    ${this.get_grand_total()}
+                                </div>
+                                <div class="quantity-total">
+                                    ${this.get_item_qty_total()}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="hotkey-container col-sm-6"></div>
+                    <div class="col-sm-6">
+                        <div class="number-pad-container col-sm-6"></div>
+                        <div class="col-sm-6 loyalty-program-section">
+                            <div class="loyalty-program-field"> </div>
+                        </div>
+                        <div class="hotkey-container col-sm-6"></div>
+                    </div>
                 </div>
             </div>
         `);
@@ -1142,23 +1148,28 @@ class POSCart {
         var pay_class = {}
         pay_class[__('Pay')]='brand-primary'
         pay_class['logOut']='brand-danger'
+        pay_class['scanBarcode']='brand-succsess'
         this.numpad = new NumberPad({
             button_array: [
-                [1, 2, 3, placeHolder, logOut],
+                [1, 2, 3, scanBarcode, logOut],
                 [4, 5, 6, DiscCHF, Disc],
                 [7, 8, 9, Qty, MultiDisc],
                 [Del, 0, '.', Rate, Pay]
             ],
             add_class: pay_class,
-            disable_highlight: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF, placeHolder, logOut],
+            disable_highlight: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF, scanBarcode, logOut],
             reset_btns: [Qty, Disc, Rate, Pay, MultiDisc, DiscCHF],
             del_btn: Del,
             disable_btns: this.disable_numpad_control(),
             wrapper: this.wrapper.find('.number-pad-container'),
             onclick: (btn_value) => {
                 // on click
-                if (btn_value == 'placeHolder') {
-                    // placeHolder BTN --> no action
+                if (btn_value == 'scanBarcode') {
+                    cur_pos.items.search_field.set_focus();
+                    frappe.show_alert({
+                        indicator: 'green',
+                        message: __('Ready to scan')
+                    });
                     return;
                 }
                 if (!this.selected_item && ![Pay, MultiDisc, logOut].includes(btn_value)) {
@@ -1795,10 +1806,10 @@ class NumberPad {
         }
 
         function get_col(col) {
-            if (!['placeHolder', 'logOut'].includes(col)) {
+            if (!['scanBarcode', 'logOut'].includes(col)) {
                 return `<div class="num-col" data-value="${col}"><div>${col}</div></div>`;
-            } else if (col == 'placeHolder') {
-                return `<div class="num-col" data-value="${col}"><div>&nbsp;</div></div>`;
+            } else if (col == 'scanBarcode') {
+                return `<div class="num-col" data-value="${col}"><div><i class="fa fa-barcode"></i></div></div>`;
             } else if (col == 'logOut') {
                 return `<div class="num-col" data-value="logOut"><div><i class="fa fa-lock"></i></div></div>`;
             }
