@@ -47,6 +47,9 @@ def receipt_print(sinv=None, test_print=False):
             # no pos profile no receipt
             return
         
+        if sinv.is_return == 1:
+            frappe.throw("Retouren können nicht auf dem Thermo Printer gedruckt werden.")
+        
         # connect printer
         printer_ip = frappe.db.get_value("POS Profile", sinv.pos_profile, 'receipt_printer_ip')
         if not printer_ip:
@@ -88,14 +91,22 @@ def receipt_print(sinv=None, test_print=False):
                             mwst_code_dict[sinv_item.item_tax_template] = mwst_code_loop
                             mwst_code_loop += 1
             
+            discount = False
+            if sinv_item.discount_amount > 0 or sinv_item.discount_percentage > 0:
+                if sinv_item.discount_percentage > 0:
+                    discount = "-" + str(sinv_item.discount_percentage) + "%"
+                else:
+                    discount = "-" + str(frappe.utils.fmt_money(sinv_item.discount_amount))
+            
             items.append({
                 'item_name': sinv_item.item_name,
                 'qty': int(sinv_item.qty),
-                'rate': sinv_item.rate + (tax_amount / sinv_item.qty),
+                'rate': (sinv_item.price_list_rate or sinv_item.rate) + (tax_amount / sinv_item.qty),
                 'total': sinv_item.amount + tax_amount,
                 'garantie': True if item_base.has_warranty else False,
                 'garantie_dauer': item_base.warranty,
-                'mwst_code': mwst_code_dict[sinv_item.item_tax_template]
+                'mwst_code': mwst_code_dict[sinv_item.item_tax_template],
+                'discount': discount
             })
         
         # default codepage
@@ -120,34 +131,45 @@ def receipt_print(sinv=None, test_print=False):
         
         
         for item_dict in items:
+            # Artikelname
             item = item_dict['item_name']
             if len(item) > 19:
                 item = item[:19] + "  "
             else:
                 item = item.ljust(21, " ")
             
+            # Artikelmenge
             qty = str(item_dict['qty'])
             if len(qty) > 7:
                 qty = qty[:7] + " "
             else:
                 qty = qty.ljust(8, " ")
             
+            # Artikelpreis
             rate = str(frappe.utils.fmt_money(item_dict['rate']))
             if len(rate) > 8:
                 rate = rate[:8] + " "
             else:
                 rate = rate.ljust(9, " ")
             
+            # Positions Total
             total = str(frappe.utils.fmt_money(item_dict['total']))
             if len(total) > 8:
                 total = total[:8] + " "
             else:
                 total = total.ljust(9, " ")
             
+            # MWST Code
             mwst_code = str(item_dict['mwst_code'])
             
             p.text("{0}{1}{2}{3}{4}\n".format(item, qty, rate, total, mwst_code))
             
+            # Artikelspezifischer Rabatt
+            discount = item_dict['discount']
+            if discount:
+                p.text("                             {0}\n".format(discount))
+            
+            # Artikelspezifische Garantie
             garantie = item_dict['garantie']
             if garantie:
                 garantie_dauer = item_dict['garantie_dauer']
@@ -199,6 +221,7 @@ def receipt_print(sinv=None, test_print=False):
         p.qr("{0}".format(sinv.name), size=5)
         
         p.cut()
+        return
     except Exception as err:
         frappe.log_error("{0}".format(err), "receipt_print() failed")
         return

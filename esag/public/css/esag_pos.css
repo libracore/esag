@@ -1,8 +1,9 @@
-[data-route="point-of-sale"] .layout-main-section-wrapper {
+[data-route="esagpos"] .layout-main-section-wrapper {
   margin-bottom: 0;
 }
-[data-route="point-of-sale"] .pos-items-wrapper {
-  max-height: calc(100vh - 210px);
+[data-route="esagpos"] .pos-items-wrapper {
+  /*max-height: calc(100vh - 650px);*/
+  max-height: 49vh;
 }
 .pos {
   padding: 15px;
@@ -14,13 +15,13 @@
 .cart-container {
   padding: 0 15px;
   display: inline-block;
-  width: 39%;
+  width: 99%;
   vertical-align: top;
 }
 .item-container {
   padding: 0 15px;
   display: inline-block;
-  width: 60%;
+  width: 99%;
   vertical-align: top;
 }
 .search-field {
@@ -130,10 +131,10 @@ input[type=number]::-webkit-outer-spin-button {
   border: 1px solid #d1d8dd;
 }
 .num-col > div {
-  width: 79px;
-  height: 79px;
+  width: 87px;
+  height: 87px;
   text-align: center;
-  line-height: 79px;
+  line-height: 87px;
 }
 .num-col.active {
   background-color: #fffce7;
@@ -144,6 +145,10 @@ input[type=number]::-webkit-outer-spin-button {
 }
 .num-col.brand-danger {
   background-color: #ff5858;
+  color: #ffffff;
+}
+.num-col.brand-succsess {
+  background-color: green;
   color: #ffffff;
 }
 .discount-amount .discount-inputs {
