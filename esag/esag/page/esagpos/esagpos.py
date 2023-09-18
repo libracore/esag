@@ -94,9 +94,9 @@ def receipt_print(sinv=None, test_print=False):
             discount = False
             if sinv_item.discount_amount > 0 or sinv_item.discount_percentage > 0:
                 if sinv_item.discount_percentage > 0:
-                    discount = "-" + str(sinv_item.discount_percentage) + "%"
+                    discount = "- " + str(sinv_item.discount_percentage) + "%"
                 else:
-                    discount = "-" + str(frappe.utils.fmt_money(sinv_item.discount_amount))
+                    discount = "- CHF " + str(frappe.utils.fmt_money(sinv_item.discount_amount))
             
             items.append({
                 'item_name': sinv_item.item_name,
@@ -177,7 +177,30 @@ def receipt_print(sinv=None, test_print=False):
             else:
                 p.text("\n")
         
-        total_amount = str(frappe.utils.fmt_money(sinv.grand_total))
+        # Total und Rundungsdifferenz
+        if sinv.rounding_adjustment > 0:
+            # Total ungerundet
+            total_amount = str(frappe.utils.fmt_money(sinv.grand_total))
+            total_string = "Zwischentotal CHF"
+            
+            if (len(total_amount) + len(total_string)) < 43:
+                adjust = 43 - len(total_amount)
+                total_string = total_string.ljust(adjust, " ")
+            
+            p.text("{0}{1}\n".format(total_string, total_amount))
+            
+            # Rundungsdifferenz
+            total_amount = str(frappe.utils.fmt_money(sinv.rounding_adjustment))
+            total_string = "Rundungsdifferenz CHF"
+            
+            if (len(total_amount) + len(total_string)) < 43:
+                adjust = 43 - len(total_amount)
+                total_string = total_string.ljust(adjust, " ")
+            
+            p.text("{0}{1}\n".format(total_string, total_amount))
+        
+        # Total gerundet
+        total_amount = str(frappe.utils.fmt_money(sinv.rounded_total))
         total_string = "TOTAL CHF"
         
         if (len(total_amount) + len(total_string)) < 43:
@@ -200,12 +223,15 @@ def receipt_print(sinv=None, test_print=False):
         p.text("ETH Store AG,        CHE-264.182.531 MWST\n")
         if len(mwst_dict_keys) > 0:
             p.text("Code    MWST         Total     MWST\n")
+        printed_mwst_codes = []
         for mwst_satz in mwst_dict_keys:
             mwst_code = str(mwst_dict[mwst_satz]['mwst_code']).ljust(8, " ")
-            _mwst_satz = str(str(mwst_satz) + "%").ljust(13, " ")
-            _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(10, " ")
-            _mwst = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['mwst'])).ljust(4, " ")
-            p.text("{mwst_code}{_mwst_satz}{_mwst_total}{_mwst}\n".format(mwst_code=mwst_code, _mwst_satz=_mwst_satz, _mwst_total=_mwst_total, _mwst=_mwst))
+            if mwst_code not in printed_mwst_codes:
+                _mwst_satz = str(str(mwst_satz) + "%").ljust(13, " ")
+                _mwst_total = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['total'])).ljust(10, " ")
+                _mwst = str(frappe.utils.fmt_money(mwst_dict[mwst_satz]['mwst'])).ljust(4, " ")
+                p.text("{mwst_code}{_mwst_satz}{_mwst_total}{_mwst}\n".format(mwst_code=mwst_code, _mwst_satz=_mwst_satz, _mwst_total=_mwst_total, _mwst=_mwst))
+                printed_mwst_codes.append(mwst_code)
         
         p.text("\n\n")
         
