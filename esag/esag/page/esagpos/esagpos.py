@@ -177,6 +177,17 @@ def receipt_print(sinv=None, test_print=False):
             else:
                 p.text("\n")
         
+        # Rechnungsübergreifender Rabatt
+        if sinv.discount_amount > 0:
+            total_amount = str(frappe.utils.fmt_money(sinv.discount_amount))
+            total_string = "Abzüglich Rabatt CHF"
+            
+            if (len(total_amount) + len(total_string)) < 43:
+                adjust = 43 - len(total_amount)
+                total_string = total_string.ljust(adjust, " ")
+            
+            p.text("{0}{1}\n".format(total_string, total_amount))
+        
         # Total und Rundungsdifferenz
         if sinv.rounding_adjustment > 0:
             # Total ungerundet
@@ -236,7 +247,7 @@ def receipt_print(sinv=None, test_print=False):
         p.text("\n\n")
         
         # MA Infos
-        p.text("Es bediente Sie: {0}\n".format(frappe.db.get_value("User", sinv.owner, 'full_name')))
+        p.text("Es bediente Sie: {0}\n".format(frappe.db.get_value("User", sinv.owner, 'first_name')))
         p.text("Herzlichen Dank für Ihren Einkauf!\n\n")
         
         # RG Details
