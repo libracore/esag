@@ -94,14 +94,14 @@ def receipt_print(sinv=None, test_print=False):
             discount = False
             if sinv_item.discount_amount > 0 or sinv_item.discount_percentage > 0:
                 if sinv_item.discount_percentage > 0:
-                    discount = "- " + str(sinv_item.discount_percentage) + "%"
+                    discount = str(sinv_item.discount_percentage) + "%"
                 else:
-                    discount = "- CHF " + str(frappe.utils.fmt_money(sinv_item.discount_amount))
+                    discount = "CHF " + str(frappe.utils.fmt_money(sinv_item.discount_amount))
             
             items.append({
                 'item_name': sinv_item.item_name,
                 'qty': int(sinv_item.qty),
-                'rate': (sinv_item.price_list_rate or sinv_item.rate) + (tax_amount / sinv_item.qty),
+                'rate': sinv_item.rate + (tax_amount / sinv_item.qty),
                 'total': sinv_item.amount + tax_amount,
                 'garantie': True if item_base.has_warranty else False,
                 'garantie_dauer': item_base.warranty,
@@ -167,7 +167,7 @@ def receipt_print(sinv=None, test_print=False):
             # Artikelspezifischer Rabatt
             discount = item_dict['discount']
             if discount:
-                p.text("                             {0}\n".format(discount))
+                p.text("               Inkl. Rabatt ({0})\n".format(discount))
             
             # Artikelspezifische Garantie
             garantie = item_dict['garantie']
