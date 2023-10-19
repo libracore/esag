@@ -694,6 +694,44 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         // this.page.add_menu_item(__("Pay"), function () {
         //
         // }).addClass('visible-xs');
+        
+        this.page.add_menu_item(__('Connect ECR'), function() {
+            frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
+                frappe.show_alert("Lade TimAPI...", 5);
+                setTimeout(function(){
+                    frappe.require('/assets/esag/js/tim/app.js', () => {
+                        frappe.show_alert("Lade Assets...", 5);
+                        setTimeout(function(){
+                            frappe.show_alert("Verbinde Terminal...", 5);
+                            try {
+                                simpleEcr.terminal.connectAsync();
+                                setTimeout(function(){
+                                    frappe.show_alert("Terminal Login...", 5);
+                                    try {
+                                        simpleEcr.terminal.loginAsync();
+                                        setTimeout(function(){
+                                            frappe.show_alert("Aktiviere Schicht...", 5);
+                                            try {
+                                                simpleEcr.terminal.activateAsync();
+                                            } catch( err ) {
+                                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                                console.log("Error: " + err);
+                                            }
+                                        }, 2000);
+                                    } catch (err) {
+                                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                        console.log("Error: " + err);
+                                    }
+                                }, 2000);
+                            } catch (err) {
+                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                console.log("Error: " + err);
+                            }
+                        }, 2000);
+                    });
+                }, 2000);
+            });
+        });
 
         this.page.add_menu_item(__("Form View"), function () {
             frappe.model.sync(me.frm.doc);
@@ -1970,6 +2008,7 @@ class Payment {
                 frappe.msgprint(__("Payment must be made for the total amount"));
                 return
             } else {
+                cur_dialog.set_df_property('six_status', 'options', '<div></div>');
                 me.dialog.hide();
                 me.events.submit_form();
             }
@@ -1994,6 +2033,54 @@ class Payment {
         });
 
         fields = fields.concat([
+            {
+                fieldtype: 'Button',
+                fieldname: 'ecr_btn',
+                label: 'SIX-Terminal',
+                click: () => {
+                    cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: orange;"><center>Zahlungsprozess läuft</center></div>');
+                    cur_dialog.set_df_property('ecr_cancel', 'hidden', 0);
+                    // prepare amount for ecr terminal
+                    var dialog_amount = this.dialog.get_value('SIX-Kartenterminal');
+                    var string_dialog_amount = String(dialog_amount);
+                    var major_amount = string_dialog_amount.split(".")[0];
+                    var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
+                    var process_amount = major_amount + minor_amount;
+                    if (minor_amount.length < 1) {
+                        process_amount = process_amount + "00";
+                    } else if (minor_amount.length < 2) {
+                        process_amount = process_amount + "0";
+                    }
+                    
+                    // send amount to ecr terminal
+                    try {
+                        let amount  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
+                        simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
+                    } catch( err ) {
+                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                        console.log("Error: " + err);
+                    }
+                }
+            },
+            {
+                fieldtype: 'HTML',
+                fieldname: 'six_status',
+                options: '<div></div>'
+            },
+            {
+                fieldtype: 'Button',
+                fieldname: 'ecr_cancel',
+                label: 'Zahlungsprozess abbrechen',
+                hidden: 1,
+                click: () => {
+                    try {
+                        simpleEcr.terminal.cancel();
+                        cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                    } catch( err ) {
+                        console.log("Error: " + err);
+                    }
+                }
+            },
             {
                 fieldtype: 'Column Break',
             },
@@ -2160,5 +2247,14 @@ class Payment {
             this.show_paid_amount();
         }
     }
+}
 
+// *************************************************
+// Worldline Tim API
+// *************************************************
+function onTimApiReady() {
+    //~ let script = document.createElement("script");
+    //~ script.src = "/assets/erpnextswiss/js/tim/app.js";
+    //~ document.getElementsByTagName("head")[0].appendChild(script);
+    // do nothing
 }
