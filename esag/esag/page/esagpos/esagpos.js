@@ -695,42 +695,169 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         //
         // }).addClass('visible-xs');
         
-        this.page.add_menu_item(__('Connect ECR'), function() {
-            frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
-                frappe.show_alert("Lade TimAPI...", 5);
-                setTimeout(function(){
-                    frappe.require('/assets/esag/js/tim/app.js', () => {
-                        frappe.show_alert("Lade Assets...", 5);
-                        setTimeout(function(){
-                            frappe.show_alert("Verbinde Terminal...", 5);
+        this.page.add_menu_item(__('ECR Tools'), function() {
+            var d = new frappe.ui.Dialog({
+                'title': __('ECR Tools'),
+                'fields': [
+                    {'fieldname': 'display_section', 'fieldtype': 'Section Break', 'label': 'Display'},
+                    {'fieldname': 'display', 'fieldtype': 'HTML', 'options': `
+                        <style>
+                            div.display {
+                                background: #ceeb67;
+                                margin: 1.5em;
+                                padding: 2em 1em 2em 1em;
+                                font-family: monospace;
+                                font-size: 120%;
+                                border-radius: 1em;
+                                border: 2px solid #b0b0b0;
+                            }
+                        </style>
+                        <div class="display">
+                            <div class="display-line1">&nbsp;</div>
+                            <div class="display-line2">&nbsp;</div>
+                        </div>`},
+                    {'fieldname': 'payouts', 'fieldtype': 'Section Break', 'label': 'Payouts'},
+                    {'fieldname': 'credit_amount', 'fieldtype': 'Float', 'label': __('Credit Amount')},
+                    {'fieldname': 'credit', 'fieldtype': 'Button', 'label': __('Credit'),
+                        'click': function() {
+                            var credit = d.get_value('credit_amount');
+                            if (credit) {
+                                // prepare amount for ecr terminal
+                                var dialog_amount = credit;
+                                var string_dialog_amount = String(dialog_amount);
+                                var major_amount = string_dialog_amount.split(".")[0];
+                                var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
+                                var process_amount = major_amount + minor_amount;
+                                if (minor_amount.length < 1) {
+                                    process_amount = process_amount + "00";
+                                } else if (minor_amount.length < 2) {
+                                    process_amount = process_amount + "0";
+                                }
+                                try {
+                                    var amount  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
+                                    simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.credit, amount);
+                                } catch( err ) {
+                                    console.log("Error: " + err);
+                                    frappe.throw(err);
+                                }
+                            } else {
+                                frappe.throw("Bitte einen Betrag eingeben.");
+                            }
+                        }
+                    },
+                    {'fieldname': 'cancel', 'fieldtype': 'Button', 'label': __('Cancel'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.cancel();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
+                    {'fieldname': 'trx_seq_cnt', 'fieldtype': 'Int', 'label': __('Trx. Seq-Cnt'),
+                        'get_query': function() { return { filters: {'is_pos':1 } } }
+                    },
+                    {'fieldname': 'reversal', 'fieldtype': 'Button', 'label': __('Reversal'),
+                        'click': function() {
+                            var reversal = d.get_value('trx_seq_cnt');
+                            try {
+                                var trxData = new timapi.TransactionData();
+                                trxData.transSeq = reversal;
+                                simpleEcr.terminal.setTransactionData(trxData);
+                                simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.reversal, undefined);
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'terminal_control', 'fieldtype': 'Section Break', 'label': 'Terminal Control'},
+                    {'fieldname': 'disconnect', 'fieldtype': 'Button', 'label': __('Disconnect'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.disconnectAsync();
+                            } catch (err) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'logout', 'fieldtype': 'Button', 'label': __('Logout'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.logoutAsync();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'deactivate', 'fieldtype': 'Button', 'label': __('Deactivate'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.deactivateAsync();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
+                    {'fieldname': 'connect', 'fieldtype': 'Button', 'label': __('Connect'),
+                        'click': function() {
                             try {
                                 simpleEcr.terminal.connectAsync();
-                                setTimeout(function(){
-                                    frappe.show_alert("Terminal Login...", 5);
-                                    try {
-                                        simpleEcr.terminal.loginAsync();
-                                        setTimeout(function(){
-                                            frappe.show_alert("Aktiviere Schicht...", 5);
-                                            try {
-                                                simpleEcr.terminal.activateAsync();
-                                            } catch( err ) {
-                                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
-                                                console.log("Error: " + err);
-                                            }
-                                        }, 2000);
-                                    } catch (err) {
-                                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
-                                        console.log("Error: " + err);
-                                    }
-                                }, 2000);
                             } catch (err) {
-                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
                                 console.log("Error: " + err);
+                                frappe.throw(err);
                             }
-                        }, 2000);
-                    });
-                }, 2000);
+                        }
+                    },
+                    {'fieldname': 'login', 'fieldtype': 'Button', 'label': __('Login'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.loginAsync();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'activate', 'fieldtype': 'Button', 'label': __('Activate'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.activateAsync();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    },
+                    {'fieldname': 'daily_closing', 'fieldtype': 'Section Break', 'label': 'Daily Closing'},
+                    {'fieldname': 'balance', 'fieldtype': 'Button', 'label': __('Balance'),
+                        'click': function() {
+                            try {
+                                simpleEcr.terminal.balanceAsync();
+                            } catch( err ) {
+                                console.log("Error: " + err);
+                                frappe.throw(err);
+                            }
+                        }
+                    }
+                ]
             });
+            d.show();
+            setTimeout(function() {
+                try {
+                    let terminalStatus = simpleEcr.terminal.getTerminalStatus();
+                    console.log("Terminal Status: " + terminalStatus);
+                    updateDisplayContent(terminalStatus);
+                } catch( err ) {
+                    console.log("Error: " + err);
+                }
+            }, 1000);
         });
 
         this.page.add_menu_item(__("Form View"), function () {
@@ -2057,8 +2184,62 @@ class Payment {
                         let amount  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
                         simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
                     } catch( err ) {
-                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
-                        console.log("Error: " + err);
+                        if (err == 'ReferenceError: timapi is not defined') {
+                            console.log("Error: " + err);
+                            cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red; color: white;"><center>Zahlungsterminal Verbindungsproblem<br>Bitte warten...</center></div>');
+                            cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                            frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
+                                frappe.show_alert("Lade TimAPI...", 5);
+                                setTimeout(function(){
+                                    frappe.require('/assets/esag/js/tim/app.js', () => {
+                                        frappe.show_alert("Lade Assets...", 5);
+                                        setTimeout(function(){
+                                            frappe.show_alert("Verbinde Terminal...", 5);
+                                            try {
+                                                simpleEcr.terminal.connectAsync();
+                                                setTimeout(function(){
+                                                    frappe.show_alert("Terminal Login...", 5);
+                                                    try {
+                                                        simpleEcr.terminal.loginAsync();
+                                                        setTimeout(function(){
+                                                            frappe.show_alert("Aktiviere Schicht...", 5);
+                                                            try {
+                                                                simpleEcr.terminal.activateAsync();
+                                                                setTimeout(function(){
+                                                                    try {
+                                                                        let amount_new_try  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
+                                                                        simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount_new_try);
+                                                                        me.dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: orange;"><center>Zahlungsprozess läuft</center></div>');
+                                                                        me.dialog.set_df_property('ecr_cancel', 'hidden', 0);
+                                                                    } catch( err_last ) {
+                                                                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                                                        console.log("Error: " + err_last);
+                                                                    }
+                                                                }, 2000);
+                                                            } catch( err ) {
+                                                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                                                console.log("Error: " + err);
+                                                            }
+                                                        }, 2000);
+                                                    } catch (err) {
+                                                        frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                                        console.log("Error: " + err);
+                                                    }
+                                                }, 2000);
+                                            } catch (err) {
+                                                frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.");
+                                                console.log("Error: " + err);
+                                            }
+                                        }, 2000);
+                                    });
+                                }, 2000);
+                            });
+                        } else {
+                            console.log("Error: " + err);
+                            cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red; color: white;"><center>Zahlungsterminal Verbindungsproblem</center></div>');
+                            cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                            frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.<hr>" + err);
+                        }
                     }
                 }
             },
@@ -2258,3 +2439,44 @@ function onTimApiReady() {
     //~ document.getElementsByTagName("head")[0].appendChild(script);
     // do nothing
 }
+
+let loadTimApiAssets = new Promise(function(good, bad) {
+    frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
+        frappe.show_alert("Lade TimAPI...", 5);
+        setTimeout(function(){
+            frappe.require('/assets/esag/js/tim/app.js', () => {
+                frappe.show_alert("Lade Assets...", 5);
+                setTimeout(function(){
+                    frappe.show_alert("Verbinde Terminal...", 5);
+                    try {
+                        simpleEcr.terminal.connectAsync();
+                        setTimeout(function(){
+                            frappe.show_alert("Terminal Login...", 5);
+                            try {
+                                simpleEcr.terminal.loginAsync();
+                                setTimeout(function(){
+                                    frappe.show_alert("Aktiviere Schicht...", 5);
+                                    try {
+                                        simpleEcr.terminal.activateAsync();
+                                        setTimeout(function(){
+                                            good(true);
+                                        }, 2000);
+                                    } catch( err ) {
+                                        console.log("Error: " + err);
+                                        bad(err);
+                                    }
+                                }, 2000);
+                            } catch (err) {
+                                console.log("Error: " + err);
+                                bad(err);
+                            }
+                        }, 2000);
+                    } catch (err) {
+                        console.log("Error: " + err);
+                        bad(err);
+                    }
+                }, 2000);
+            });
+        }, 2000);
+    });
+});

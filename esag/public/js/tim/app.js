@@ -70,6 +70,7 @@ class timapiListener extends timapi.DefaultTerminalListener {
                     if (data.printData.receipts.length > 1) {
                         cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: green;"><center>Zahlungsprozess abgeschlossen</center></div>');
                         cur_frm.set_value("eft_details", data.printData.receipts[data.printData.receipts.length - 1].value);
+                        cur_frm.set_value("trans_seq", data.transactionInformation.transSeq);
                         cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
                     }
                 }
@@ -89,8 +90,29 @@ class timapiListener extends timapi.DefaultTerminalListener {
     
     activateCompleted(event, data){
         super.activateCompleted(event, data);
-        if (data.printData.receipts.length > 0) {
-            frappe.msgprint(data.printData.receipts[0].value.replace(/\n/g, "<br />"));
+        if (data.printData.receipts) {
+            if (data.printData.receipts.length > 0) {
+                frappe.call({
+                    method: "esag.esag.page.esagpos.esagpos.quick_print",
+                    args: {
+                        print_data: data.printData.receipts[0].value
+                    }
+                });
+            }
+        }
+    }
+    
+    balanceCompleted(event, data){
+        super.balanceCompleted(event, data);
+        if (data.printData.receipts) {
+            if (data.printData.receipts.length > 0) {
+                frappe.call({
+                    method: "esag.esag.page.esagpos.esagpos.quick_print",
+                    args: {
+                        print_data: data.printData.receipts[0].value
+                    }
+                });
+            }
         }
     }
 }
@@ -192,19 +214,31 @@ function updateDisplayContent(terminalStatus) {
         if (terminalStatus.displayContent.length > 0) {
             text = terminalStatus.displayContent[0];
         }
-        $('#display-line1').text(text);
-        if (text == '') {
-            $('#display-line1').append('&nbsp;');
-        }
+        $('.display-line1').each(function(){
+            $(this).text(text);
+            if (text == '') {
+                $(this).append('&nbsp;');
+            }
+        });
+        //~ $('#display-line1').text(text);
+        //~ if (text == '') {
+            //~ $('#display-line1').append('&nbsp;');
+        //~ }
 
         text = '';
         if (terminalStatus.displayContent.length > 1) {
             text = terminalStatus.displayContent[1];
         }
-        $('#display-line2').text(text);
-        if (text == '') {
-            $('#display-line2').append('&nbsp;');
-        }
+        $('.display-line2').each(function(){
+            $(this).text(text);
+            if (text == '') {
+                $(this).append('&nbsp;');
+            }
+        });
+        //~ $('#display-line2').text(text);
+        //~ if (text == '') {
+            //~ $('#display-line2').append('&nbsp;');
+        //~ }
     }
 }
 

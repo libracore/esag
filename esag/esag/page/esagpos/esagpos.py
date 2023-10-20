@@ -265,6 +265,23 @@ def receipt_print(sinv=None, test_print=False):
         frappe.log_error("{0}".format(err), "receipt_print() failed")
         return
 
+@frappe.whitelist()
+def quick_print(print_data=None):
+    # connect printer
+    printer_ip = frappe.db.get_value("Worldline TIM", "Worldline TIM", 'printer_ip')
+    if not printer_ip:
+        return False
+    try:
+        p = connect_printer(printer_ip)
+        p.charcode('USA')
+        p.set(align='left')
+        p.text("{0}\n".format(print_data))
+        p.cut()
+        return 1
+    except Exception as err:
+        frappe.log_error("{0}".format(err), "quick_print() failed")
+        return False
+
 def connect_printer(printer_ip):
     return printer.Network(printer_ip)
 
