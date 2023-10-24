@@ -88,6 +88,7 @@ class timapiListener extends timapi.DefaultTerminalListener {
         }
     }
     
+    // print method for shift activations
     activateCompleted(event, data){
         super.activateCompleted(event, data);
         if (data.printData.receipts) {
@@ -102,6 +103,7 @@ class timapiListener extends timapi.DefaultTerminalListener {
         }
     }
     
+    // print method for daily-closings
     balanceCompleted(event, data){
         super.balanceCompleted(event, data);
         if (data.printData.receipts) {
@@ -161,7 +163,8 @@ function initTimApi() {
         simpleEcr.terminal = new timapi.Terminal(settings);
 
         // Add user data
-        simpleEcr.terminal.setPosId("ECR-01");
+        var pos_id = details.pos_id ? details.pos_id:'ECR-Default';
+        simpleEcr.terminal.setPosId(pos_id);
         simpleEcr.terminal.setUserId(1);
 
         // Add customized listener

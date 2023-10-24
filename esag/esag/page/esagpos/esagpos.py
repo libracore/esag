@@ -268,8 +268,9 @@ def receipt_print(sinv=None, test_print=False):
 @frappe.whitelist()
 def quick_print(print_data=None):
     # connect printer
+    enable_printouts = False if int(frappe.db.get_value("Worldline TIM", "Worldline TIM", 'printouts')) != 1 else True
     printer_ip = frappe.db.get_value("Worldline TIM", "Worldline TIM", 'printer_ip')
-    if not printer_ip:
+    if not printer_ip or not enable_printouts:
         return False
     try:
         p = connect_printer(printer_ip)
