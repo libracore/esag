@@ -2249,6 +2249,25 @@ class Payment {
                 options: '<div></div>'
             },
             {
+                fieldname: 'display',
+                fieldtype: 'HTML',
+                options: `
+                        <style>
+                            div.display {
+                                background: #ceeb67;
+                                padding: 2em 1em 2em 1em;
+                                font-family: monospace;
+                                font-size: 120%;
+                                border-radius: 1em;
+                                border: 2px solid #b0b0b0;
+                            }
+                        </style>
+                        <div class="display">
+                            <div class="display-line1">&nbsp;</div>
+                            <div class="display-line2">&nbsp;</div>
+                        </div>`
+            },
+            {
                 fieldtype: 'Button',
                 fieldname: 'ecr_cancel',
                 label: 'Zahlungsprozess abbrechen',
