@@ -2458,7 +2458,7 @@ function onTimApiReady() {
     //~ document.getElementsByTagName("head")[0].appendChild(script);
     // do nothing
 }
-
+/*
 let loadTimApiAssets = new Promise(function(good, bad) {
     frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
         frappe.show_alert("Lade TimAPI...", 5);
@@ -2499,3 +2499,4 @@ let loadTimApiAssets = new Promise(function(good, bad) {
         }, 2000);
     });
 });
+*/
