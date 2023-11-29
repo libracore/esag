@@ -716,9 +716,9 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                             <div class="display-line1">&nbsp;</div>
                             <div class="display-line2">&nbsp;</div>
                         </div>`},
-                    {'fieldname': 'payouts', 'fieldtype': 'Section Break', 'label': 'Payouts'},
-                    {'fieldname': 'credit_amount', 'fieldtype': 'Float', 'label': __('Credit Amount')},
-                    {'fieldname': 'credit', 'fieldtype': 'Button', 'label': __('Credit'),
+                    {'fieldname': 'payouts', 'fieldtype': 'Section Break', 'label': 'Auszahlungen'},
+                    {'fieldname': 'credit_amount', 'fieldtype': 'Float', 'label': __('Auszahlungssumme')},
+                    {'fieldname': 'credit', 'fieldtype': 'Button', 'label': __('Auszahlen'),
                         'click': function() {
                             var credit = d.get_value('credit_amount');
                             if (credit) {
@@ -756,10 +756,10 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                     },
                     {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
-                    {'fieldname': 'trx_seq_cnt', 'fieldtype': 'Int', 'label': __('Trx. Seq-Cnt'),
+                    {'fieldname': 'trx_seq_cnt', 'fieldtype': 'Int', 'label': __('Rückabwicklung anhand Trx. Seq-Cnt'),
                         'get_query': function() { return { filters: {'is_pos':1 } } }
                     },
-                    {'fieldname': 'reversal', 'fieldtype': 'Button', 'label': __('Reversal'),
+                    {'fieldname': 'reversal', 'fieldtype': 'Button', 'label': __('Rückabwicklung'),
                         'click': function() {
                             var reversal = d.get_value('trx_seq_cnt');
                             try {
@@ -774,7 +774,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                     },
                     {'fieldname': 'terminal_control', 'fieldtype': 'Section Break', 'label': 'Terminal Control'},
-                    {'fieldname': 'disconnect', 'fieldtype': 'Button', 'label': __('Disconnect'),
+                    {'fieldname': 'disconnect', 'fieldtype': 'Button', 'label': __('Verbindung trennen'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.disconnectAsync();
@@ -784,7 +784,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                             }
                         }
                     },
-                    {'fieldname': 'logout', 'fieldtype': 'Button', 'label': __('Logout'),
+                    {'fieldname': 'logout', 'fieldtype': 'Button', 'label': __('Abmelden'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.logoutAsync();
@@ -794,7 +794,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                             }
                         }
                     },
-                    {'fieldname': 'deactivate', 'fieldtype': 'Button', 'label': __('Deactivate'),
+                    {'fieldname': 'deactivate', 'fieldtype': 'Button', 'label': __('Deaktivieren'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.deactivateAsync();
@@ -805,7 +805,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                     },
                     {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
-                    {'fieldname': 'connect', 'fieldtype': 'Button', 'label': __('Connect'),
+                    {'fieldname': 'connect', 'fieldtype': 'Button', 'label': __('Verbinden'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.connectAsync();
@@ -815,7 +815,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                             }
                         }
                     },
-                    {'fieldname': 'login', 'fieldtype': 'Button', 'label': __('Login'),
+                    {'fieldname': 'login', 'fieldtype': 'Button', 'label': __('Anmelden'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.loginAsync();
@@ -825,7 +825,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                             }
                         }
                     },
-                    {'fieldname': 'activate', 'fieldtype': 'Button', 'label': __('Activate'),
+                    {'fieldname': 'activate', 'fieldtype': 'Button', 'label': __('Aktivieren'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.activateAsync();
@@ -836,7 +836,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         }
                     },
                     {'fieldname': 'daily_closing', 'fieldtype': 'Section Break', 'label': 'Daily Closing'},
-                    {'fieldname': 'balance', 'fieldtype': 'Button', 'label': __('Balance'),
+                    {'fieldname': 'balance', 'fieldtype': 'Button', 'label': __('Tagesabschluss Saldo'),
                         'click': function() {
                             try {
                                 simpleEcr.terminal.balanceAsync();
@@ -899,7 +899,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             var d = new frappe.ui.Dialog({
                 'title': __('Receipt printing'),
                 'fields': [
-                    {'fieldname': 'receipt', 'fieldtype': 'Link', 'label': __('Receipt'), 'options': 'Sales Invoice', 'reqd': 1,
+                    {'fieldname': 'receipt', 'fieldtype': 'Link', 'label': __('Quittung (Rechnung)'), 'options': 'Sales Invoice', 'reqd': 1,
                         'get_query': function() { return { filters: {'is_pos':1 } } }
                     },
                     {'fieldname': 'cb_1', 'fieldtype': 'Column Break'},
@@ -2453,12 +2453,9 @@ class Payment {
 // Worldline Tim API
 // *************************************************
 function onTimApiReady() {
-    //~ let script = document.createElement("script");
-    //~ script.src = "/assets/erpnextswiss/js/tim/app.js";
-    //~ document.getElementsByTagName("head")[0].appendChild(script);
     // do nothing
 }
-/*
+
 let loadTimApiAssets = new Promise(function(good, bad) {
     frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
         frappe.show_alert("Lade TimAPI...", 5);
@@ -2478,6 +2475,7 @@ let loadTimApiAssets = new Promise(function(good, bad) {
                                     try {
                                         simpleEcr.terminal.activateAsync();
                                         setTimeout(function(){
+                                            frappe.show_alert("Das Terminal ist einsatzbereit...", 5);
                                             good(true);
                                         }, 2000);
                                     } catch( err ) {
@@ -2499,4 +2497,4 @@ let loadTimApiAssets = new Promise(function(good, bad) {
         }, 2000);
     });
 });
-*/
+

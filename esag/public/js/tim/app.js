@@ -38,28 +38,73 @@ class timapiListener extends timapi.DefaultTerminalListener {
         // These can be used in a following transaction e.g. in case of reversal.
         if (data != undefined && data.transactionInformation != undefined) {
             switch (data.transactionType) {
-                case timapi.constants.TransactionType.reservation:
-                case timapi.constants.TransactionType.adjustReservation:
-                    $('#lastTransaction').val(data.transactionInformation.acqTransRef);
-                    break;
                 case timapi.constants.TransactionType.purchase:
-                default:
-                    $('#lastTransaction').val(data.transactionInformation.transSeq);
-                    break;
-            }
-            if (event.exception === undefined) {
-                if (data.printData.receipts) {
-                    if (data.printData.receipts.length > 1) {
-                        cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: green;"><center>Zahlungsprozess abgeschlossen</center></div>');
-                        cur_frm.set_value("eft_details", data.printData.receipts[data.printData.receipts.length - 1].value);
-                        cur_frm.set_value("trans_seq", data.transactionInformation.transSeq);
+                    if (event.exception === undefined) {
+                        if (data.printData.receipts) {
+                            if (data.printData.receipts.length > 1) {
+                                cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: green;"><center>Zahlungsprozess abgeschlossen</center></div>');
+                                cur_frm.set_value("eft_details", data.printData.receipts[data.printData.receipts.length - 1].value);
+                                cur_frm.set_value("trans_seq", data.transactionInformation.transSeq);
+                                cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                                console.log("--------------------------------------------------------------------------------------");
+                                console.log("[libracore] Verkauf abgeschlossen");
+                                console.log("[libracore]\n" + data.printData.receipts[data.printData.receipts.length - 1].value);
+                                console.log("--------------------------------------------------------------------------------------");
+                            }
+                        }
+                    } else {
+                        var error_message = event.exception.errorMessage;
+                        cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red;"><center>' + error_message + '</center></div>');
                         cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
                     }
-                }
-            } else {
-                var error_message = event.exception.errorMessage;
-                cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red;"><center>' + error_message + '</center></div>');
-                cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                    break;
+                case timapi.constants.TransactionType.credit:
+                    if (event.exception === undefined) {
+                        if (data.printData.receipts) {
+                            if (data.printData.receipts.length > 1) {
+                                console.log("--------------------------------------------------------------------------------------");
+                                console.log("[libracore] Gutschrift abgeschlossen");
+                                console.log("[libracore]\n" + data.printData.receipts[data.printData.receipts.length - 1].value);
+                                console.log("--------------------------------------------------------------------------------------");
+                                frappe.call({
+                                    method: "esag.esag.page.esagpos.esagpos.quick_print",
+                                    args: {
+                                        print_data: data.printData.receipts[data.printData.receipts.length - 1].value
+                                    }
+                                });
+                            }
+                        }
+                    } else {
+                        var error_message = event.exception.errorMessage;
+                        frappe.throw(error_message);
+                    }
+                    break;
+                case timapi.constants.TransactionType.reversal:
+                    if (event.exception === undefined) {
+                        if (data.printData.receipts) {
+                            if (data.printData.receipts.length > 1) {
+                                console.log("--------------------------------------------------------------------------------------");
+                                console.log("[libracore] Rückabwicklung abgeschlossen");
+                                console.log("[libracore]\n" + data.printData.receipts[data.printData.receipts.length - 1].value);
+                                console.log("--------------------------------------------------------------------------------------");
+                                frappe.call({
+                                    method: "esag.esag.page.esagpos.esagpos.quick_print",
+                                    args: {
+                                        print_data: data.printData.receipts[data.printData.receipts.length - 1].value
+                                    }
+                                });
+                            }
+                        }
+                    } else {
+                        var error_message = event.exception.errorMessage;
+                        frappe.throw(error_message);
+                    }
+                    break;
+                default:
+                    console.log("--------------------------------------------------------------------------------------");
+                    console.log("[libracore] Transaktion wird nicht getrackt (keine von Verkauf, Gutschrift, Rückabwicklung)");
+                    console.log("--------------------------------------------------------------------------------------");
+                    break;
             }
         } else {
             if (event.exception) {
@@ -83,6 +128,7 @@ class timapiListener extends timapi.DefaultTerminalListener {
                 });
             }
         }
+                console.log("habe gemacht activateCompleted");
     }
     
     // print method for daily-closings
