@@ -32,6 +32,7 @@ doctype_js = {
     "Purchase Order" : "public/js/purchase_order.js",
     "Purchase Receipt" : "public/js/purchase_receipt.js",
     "Purchase Invoice" : "public/js/purchase_invoice.js",
+    "Sales Invoice" : "public/js/sales_invoice.js",
     "Customer" : "public/js/customer.js",
     "Supplier" : "public/js/supplier.js",
     "Item" : "public/js/item.js",
@@ -100,7 +101,11 @@ doctype_js = {
 
 # Scheduled Tasks
 # ---------------
-
+scheduler_events = {
+    "daily": [
+        "esag.esag.utils.clearing_rounding_differences"
+    ]
+}
 # scheduler_events = {
 # 	"all": [
 # 		"esag.tasks.all"

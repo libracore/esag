@@ -101,50 +101,49 @@ def intermediate_price(item_code, ek_price_list, vk_price_list, target_price_lis
     return
 
 def clearing_rounding_differences():
-    invoices_with_rounding_differences = frappe.get_all("Sales Invoice",
-        filters=[['outstanding_amount', 'between', [0, 0.05]], ['docstatus', '=', 1], ['status', '=', 'Overdue']],
-        fields=['name']
-    )
+    invoices_with_rounding_differences = frappe.db.sql("""SELECT `name` FROM `tabSales Invoice` WHERE 
+                                                            `outstanding_amount` != 0
+                                                            AND `outstanding_amount` BETWEEN -0.05 AND 0.05""", as_dict=True)
     
     for invoice in invoices_with_rounding_differences:
-        clearing_rounding_differenc(invoice.get("name"))
-    
+        try:
+            clearing_rounding_differenc(invoice.get("name"))
+        except Exception as err:
+            frappe.log_error("{0}".format(err), "clearing_rounding_differences failed")
     return
     
 def clearing_rounding_differenc(sales_invoice_name):
-    '''
-    Diese Methode ist in Arbeit.
-    '''
-    # ~ sales_invoice = frappe.get_doc("Sales Invoice", sales_invoice_name)
-    # ~ outstanding_amount = sales_invoice.outstanding_amount
-    # ~ if not 0 <= outstanding_amount <= 0.05:
-        # ~ return
+    sales_invoice = frappe.get_doc("Sales Invoice", sales_invoice_name)
+    outstanding_amount = sales_invoice.outstanding_amount
+    if outstanding_amount == 0:
+        return
     
-    # ~ debit_account = sales_invoice.debit_to
-    # ~ jv = frappe.get_doc({
-        # ~ 'doctype': "Journal Entry",
-        # ~ 'posting_date': datetime.now(),
-        # ~ 'accounts': [
-            # ~ {
-                # ~ 'account': debit_account,
-                # ~ 'party_type': "Customer",
-                # ~ 'party': sales_invoice.customer,
-                # ~ 'debit_in_account_currency': outstanding_amount,
-                # ~ 'reference_type': "Sales Invoice",
-                # ~ 'reference_name': sales_invoice_name
-            # ~ },
-            # ~ {
-                # ~ 'account': debit_account,
-                # ~ 'party_type': "Customer",
-                # ~ 'party': sales_invoice.customer,
-                # ~ 'credit_in_account_currency': outstanding_amount,
-                # ~ 'is_advance': "Yes"
-            # ~ }
-        # ~ ],
-        # ~ 'user_remarks': "Ausbuchung Rundungsdifferenz von {0}".format(sales_invoice_name),
-        # ~ 'company': sales_invoice.company
-    # ~ })
-    # ~ jv.insert()
-    # ~ jv.submit()
-    # ~ frappe.db.commit()
-    return
+    debit_account = sales_invoice.debit_to
+    round_off_account = frappe.get_value("Company", sales_invoice.company, 'round_off_account') or False
+    if not round_off_account:
+        frappe.log_error("Round Off Configuration missing", "Missing Configuration")
+        return
+    
+    jv = frappe.get_doc({
+        'doctype': "Journal Entry",
+        'posting_date': date.today(),
+        'accounts': [
+            {
+                'account': round_off_account,
+                'debit_in_account_currency': outstanding_amount
+            },
+            {
+                'account': debit_account,
+                'party_type': "Customer",
+                'party': sales_invoice.customer,
+                'credit_in_account_currency': outstanding_amount,
+                'reference_type': "Sales Invoice",
+                'reference_name': sales_invoice_name
+            }
+        ],
+        'user_remark': "Ausbuchung Rundungsdifferenz von {0}".format(sales_invoice_name),
+        'company': sales_invoice.company
+    })
+    jv.insert()
+    jv.submit()
+    frappe.db.commit()
