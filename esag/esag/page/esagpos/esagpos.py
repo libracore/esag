@@ -229,7 +229,7 @@ def receipt_print(sinv=None, test_print=False):
             pm_amount = str(frappe.utils.fmt_money(payment_method.amount))
             p.text("{0}{1}\n".format(pm, pm_amount))
         if sinv.eft_details:
-            p.text("{0}".format(sinv.eft_details))
+            p.text("{0}\n".format(sinv.eft_details))
         p.text("------------------------------------------------\n")
         
         # MWST

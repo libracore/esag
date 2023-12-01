@@ -1,7 +1,9 @@
 ## ESAG
-
 ETH Store AG ERP applications
 
-#### License
+### Version Log
+#### 1.0.0
+Implementet Worldline TIM in ESAG-POS
 
+#### License
 AGPL
