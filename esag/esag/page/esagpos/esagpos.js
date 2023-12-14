@@ -2100,6 +2100,7 @@ class Payment {
     }
 
     open_modal() {
+        this.set_amount_less_credit();
         this.dialog.show();
     }
 
@@ -2157,6 +2158,17 @@ class Payment {
         });
     }
 
+    set_amount_less_credit() {
+        var me = this;
+        let return_invoice = localStorage.getItem('POSGutschrift')||false;
+        let gutschriftbetrag_aus_retoure = 0
+        if (return_invoice) {
+            gutschriftbetrag_aus_retoure = parseFloat(localStorage.getItem('POSGutschriftBetrag'));
+        }
+        let gesamtbetrag = (me.frm.doc.rounded_total || me.frm.doc.grand_total) + gutschriftbetrag_aus_retoure;
+        me.dialog.set_value('amount_less_credit', gesamtbetrag);
+    }    
+
     set_primary_action() {
         var me = this;
 
@@ -2191,6 +2203,13 @@ class Payment {
 
         fields = fields.concat([
             {
+                fieldtype: 'Currency',
+                label: __("Betrag abzüglich Gutschrift aus Retoure"),
+                options: me.frm.doc.currency,
+                fieldname: "amount_less_credit",
+                read_only: 1,
+            },
+            {
                 fieldtype: 'Button',
                 fieldname: 'ecr_btn',
                 label: 'SIX-Terminal',
@@ -2198,7 +2217,7 @@ class Payment {
                     cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: orange;"><center>Zahlungsprozess läuft</center></div>');
                     cur_dialog.set_df_property('ecr_cancel', 'hidden', 0);
                     // prepare amount for ecr terminal
-                    var dialog_amount = this.dialog.get_value('SIX-Kartenterminal');
+                    var dialog_amount = this.dialog.get_value('amount_less_credit');
                     var string_dialog_amount = String(dialog_amount);
                     var major_amount = string_dialog_amount.split(".")[0];
                     var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
