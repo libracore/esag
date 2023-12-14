@@ -875,23 +875,59 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                 }  
             ],
             function(values){
-                frappe.call({
-                    type: "POST",
-                    method: 'frappe.model.mapper.make_mapped_doc',
-                    args: {
-                        method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
-                        source_name: values.sinv,
-                        args: null,
-                        selected_children: null
-                    },
-                    freeze: true,
-                    callback: function(r) {
-                        if(!r.exc) {
-                            frappe.model.sync(r.message);
-                            frappe.set_route("Form", r.message.doctype, r.message.name);
+                // frappe.call({
+                //     type: "POST",
+                //     method: 'frappe.model.mapper.make_mapped_doc',
+                //     args: {
+                //         method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
+                //         source_name: values.sinv,
+                //         args: null,
+                //         selected_children: null
+                //     },
+                //     freeze: true,
+                //     callback: function(r) {
+                //         if(!r.exc) {
+                //             frappe.model.sync(r.message);
+                //             frappe.set_route("Form", r.message.doctype, r.message.name);
+                //         }
+                //     }
+                // })
+                var return_dialog = new frappe.ui.Dialog({
+                    'fields': [
+                        {'fieldname': 'items', 
+                         'fieldtype': 'Table', 
+                         'label': 'Items', 
+                         'reqd': 1,
+                         'fields' : [{
+                             'fieldname': 'item_code', 
+                             'fieldtype': 'Link', 
+                             'label': __('Item code'),
+                             'in_list_view': 1,
+                             'reqd': 1,
+                             'options': 'Item'
+                         },
+                         {
+                             'fieldname': 'qty', 
+                             'fieldtype': 'Float', 
+                             'label': __('Qty'),
+                             'in_list_view': 1,
+                             'reqd': 1
+                         }],
+                         data: [{
+                            'item_code': 'ETH_00045',
+                            'qty': 12
+                        }],
+                         get_data: () => {}
                         }
-                    }
-                })
+                    ],
+                    primary_action: function(){
+                        return_dialog.hide();
+                        show_alert(return_dialog.get_values());
+                    },
+                    primary_action_label: __('Reture / Gutschrift erzuegen'),
+                    title: __('Reture / Gutschrift')
+                });
+                return_dialog.show();
             },
             __("Return / Credit Note"),
             __("Create")
@@ -2506,44 +2542,44 @@ function onTimApiReady() {
 }
 
 let loadTimApiAssets = new Promise(function(good, bad) {
-    frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
-        frappe.show_alert("Lade TimAPI...", 5);
-        setTimeout(function(){
-            frappe.require('/assets/esag/js/tim/app.js', () => {
-                frappe.show_alert("Lade Assets...", 5);
-                setTimeout(function(){
-                    frappe.show_alert("Verbinde Terminal...", 5);
-                    try {
-                        simpleEcr.terminal.connectAsync();
-                        setTimeout(function(){
-                            frappe.show_alert("Terminal Login...", 5);
-                            try {
-                                simpleEcr.terminal.loginAsync();
-                                setTimeout(function(){
-                                    frappe.show_alert("Aktiviere Schicht...", 5);
-                                    try {
-                                        simpleEcr.terminal.activateAsync();
-                                        setTimeout(function(){
-                                            frappe.show_alert("Das Terminal ist einsatzbereit...", 5);
-                                            good(true);
-                                        }, 2000);
-                                    } catch( err ) {
-                                        console.log("Error: " + err);
-                                        bad(err);
-                                    }
-                                }, 2000);
-                            } catch (err) {
-                                console.log("Error: " + err);
-                                bad(err);
-                            }
-                        }, 2000);
-                    } catch (err) {
-                        console.log("Error: " + err);
-                        bad(err);
-                    }
-                }, 2000);
-            });
-        }, 2000);
-    });
+    // frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
+    //     frappe.show_alert("Lade TimAPI...", 5);
+    //     setTimeout(function(){
+    //         frappe.require('/assets/esag/js/tim/app.js', () => {
+    //             frappe.show_alert("Lade Assets...", 5);
+    //             setTimeout(function(){
+    //                 frappe.show_alert("Verbinde Terminal...", 5);
+    //                 try {
+    //                     simpleEcr.terminal.connectAsync();
+    //                     setTimeout(function(){
+    //                         frappe.show_alert("Terminal Login...", 5);
+    //                         try {
+    //                             simpleEcr.terminal.loginAsync();
+    //                             setTimeout(function(){
+    //                                 frappe.show_alert("Aktiviere Schicht...", 5);
+    //                                 try {
+    //                                     simpleEcr.terminal.activateAsync();
+    //                                     setTimeout(function(){
+    //                                         frappe.show_alert("Das Terminal ist einsatzbereit...", 5);
+    //                                         good(true);
+    //                                     }, 2000);
+    //                                 } catch( err ) {
+    //                                     console.log("Error: " + err);
+    //                                     bad(err);
+    //                                 }
+    //                             }, 2000);
+    //                         } catch (err) {
+    //                             console.log("Error: " + err);
+    //                             bad(err);
+    //                         }
+    //                     }, 2000);
+    //                 } catch (err) {
+    //                     console.log("Error: " + err);
+    //                     bad(err);
+    //                 }
+    //             }, 2000);
+    //         });
+    //     }, 2000);
+    // });
 });
 
