@@ -530,25 +530,26 @@ def get_rounded_tax_amount(itemised_tax, precision):
 def create_sales_return_invoice(sinv_data):
     import json
     sinv = frappe.get_doc(json.loads(sinv_data))
-    sinv.flags.ignore_validate = True
+    sinv.write_off_outstanding_amount_automatically = 1
 
     for sinv_item in sinv.items:
         sinv_item.qty = -1 * sinv_item.qty
         sinv_item.stock_qty = sinv_item.qty
         sinv_item.amount = sinv_item.qty * sinv_item.rate
     
-    try:
-        sinv.insert()
-        sinv.run_method("calculate_taxes_and_totals")
-        sinv.save()
-    except:
-        frappe.throw(str(sinv.as_dict()))
-    
+    sinv.run_method("calculate_taxes_and_totals")
+
     for sinv_payments in sinv.payments:
         sinv_payments.amount = sinv.rounded_total
         sinv_payments.base_amount = sinv.rounded_total
+    
     sinv.paid_amount = sinv.rounded_total
     sinv.base_paid_amount = sinv.rounded_total
-    sinv.save()
 
+    try:
+        sinv.insert()
+    except:
+        frappe.throw(str(sinv.as_dict()))
+    
+    sinv.submit()
     return sinv

@@ -927,7 +927,6 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                                     freeze: true,
                                     callback: function(r) {
                                         if(!r.exc) {
-                                            console.log(r.message)
                                             var prepared_return_invoice = r.message
                                             prepared_return_invoice.items = return_dialog.get_value('items')
                                             frappe.call({
@@ -937,7 +936,6 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                                                 },
                                                 freeze: true,
                                                 callback: function(return_invoice) {
-                                                    console.log(return_invoice.message);
                                                     localStorage.setItem('POSGutschrift', return_invoice.message.name);
                                                     localStorage.setItem('POSGutschriftBetrag', return_invoice.message.paid_amount);
                                                     cur_pos.cart.reset();
