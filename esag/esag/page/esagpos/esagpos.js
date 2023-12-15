@@ -875,62 +875,87 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                 }  
             ],
             function(values){
-                // frappe.call({
-                //     type: "POST",
-                //     method: 'frappe.model.mapper.make_mapped_doc',
-                //     args: {
-                //         method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
-                //         source_name: values.sinv,
-                //         args: null,
-                //         selected_children: null
-                //     },
-                //     freeze: true,
-                //     callback: function(r) {
-                //         if(!r.exc) {
-                //             frappe.model.sync(r.message);
-                //             frappe.set_route("Form", r.message.doctype, r.message.name);
-                //         }
-                //     }
-                // })
-                var return_dialog = new frappe.ui.Dialog({
-                    'fields': [
-                        {'fieldname': 'items', 
-                         'fieldtype': 'Table', 
-                         'label': 'Items', 
-                         'reqd': 1,
-                         'fields' : [{
-                             'fieldname': 'item_code', 
-                             'fieldtype': 'Link', 
-                             'label': __('Item code'),
-                             'in_list_view': 1,
-                             'reqd': 1,
-                             'options': 'Item'
-                         },
-                         {
-                             'fieldname': 'qty', 
-                             'fieldtype': 'Float', 
-                             'label': __('Qty'),
-                             'in_list_view': 1,
-                             'reqd': 1
-                         }],
-                         data: [{
-                            'item_code': 'ETH_00045',
-                            'qty': 12
-                        }],
-                         get_data: () => {}
-                        }
-                    ],
-                    primary_action: function(){
-                        return_dialog.hide();
-                        show_alert(return_dialog.get_values());
+                frappe.call({
+                    "method": "frappe.client.get",
+                    "args": {
+                        "doctype": "Sales Invoice",
+                        "name": values.sinv
                     },
-                    primary_action_label: __('Reture / Gutschrift erzuegen'),
-                    title: __('Reture / Gutschrift')
+                    "callback": function(response) {
+                        var sinv_to_return = response.message;
+                        var return_dialog = new frappe.ui.Dialog({
+                            'fields': [
+                                {'fieldname': 'items', 
+                                 'fieldtype': 'Table', 
+                                 'label': 'Items', 
+                                 'reqd': 1,
+                                 'fields' : [{
+                                     'fieldname': 'item_code', 
+                                     'fieldtype': 'Link', 
+                                     'label': __('Item code'),
+                                     'in_list_view': 1,
+                                     'reqd': 1,
+                                     'options': 'Item'
+                                 },
+                                 {
+                                    'fieldname': 'item_name', 
+                                    'fieldtype': 'Data', 
+                                    'label': __('Item Name'),
+                                    'in_list_view': 1,
+                                },
+                                 {
+                                     'fieldname': 'qty', 
+                                     'fieldtype': 'Float', 
+                                     'label': __('Qty'),
+                                     'in_list_view': 1,
+                                     'reqd': 1
+                                 }],
+                                 data: sinv_to_return.items
+                                }
+                            ],
+                            primary_action: function(){
+                                return_dialog.hide();
+                                frappe.call({
+                                    type: "POST",
+                                    method: 'frappe.model.mapper.make_mapped_doc',
+                                    args: {
+                                        method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
+                                        source_name: sinv_to_return.name,
+                                        args: null,
+                                        selected_children: null
+                                    },
+                                    freeze: true,
+                                    callback: function(r) {
+                                        if(!r.exc) {
+                                            console.log(r.message)
+                                            var prepared_return_invoice = r.message
+                                            prepared_return_invoice.items = return_dialog.get_value('items')
+                                            frappe.call({
+                                                method: 'esag.esag.page.esagpos.esagpos.create_sales_return_invoice',
+                                                args: {
+                                                    sinv_data: prepared_return_invoice
+                                                },
+                                                freeze: true,
+                                                callback: function(return_invoice) {
+                                                    console.log(return_invoice.message);
+                                                    localStorage.setItem('POSGutschrift', return_invoice.message.name);
+                                                    localStorage.setItem('POSGutschriftBetrag', return_invoice.message.paid_amount);
+                                                    cur_pos.cart.reset();
+                                                }
+                                            })
+                                        }
+                                    }
+                                })
+                            },
+                            primary_action_label: __('Reture / Gutschrift erzuegen'),
+                            title: __('Reture / Gutschrift')
+                        });
+                        return_dialog.show();
+                    }
                 });
-                return_dialog.show();
             },
             __("Return / Credit Note"),
-            __("Create")
+            __("Beleg laden")
             )
         });
 

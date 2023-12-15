@@ -525,3 +525,30 @@ def get_rounded_tax_amount(itemised_tax, precision):
     for taxes in itemised_tax.values():
         for tax_account in taxes:
             taxes[tax_account]["tax_amount"] = flt(taxes[tax_account]["tax_amount"], precision)
+
+@frappe.whitelist()
+def create_sales_return_invoice(sinv_data):
+    import json
+    sinv = frappe.get_doc(json.loads(sinv_data))
+    sinv.flags.ignore_validate = True
+
+    for sinv_item in sinv.items:
+        sinv_item.qty = -1 * sinv_item.qty
+        sinv_item.stock_qty = sinv_item.qty
+        sinv_item.amount = sinv_item.qty * sinv_item.rate
+    
+    try:
+        sinv.insert()
+        sinv.run_method("calculate_taxes_and_totals")
+        sinv.save()
+    except:
+        frappe.throw(str(sinv.as_dict()))
+    
+    for sinv_payments in sinv.payments:
+        sinv_payments.amount = sinv.rounded_total
+        sinv_payments.base_amount = sinv.rounded_total
+    sinv.paid_amount = sinv.rounded_total
+    sinv.base_paid_amount = sinv.rounded_total
+    sinv.save()
+
+    return sinv
