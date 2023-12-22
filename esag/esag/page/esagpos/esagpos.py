@@ -530,7 +530,6 @@ def get_rounded_tax_amount(itemised_tax, precision):
 def create_sales_return_invoice(sinv_data):
     import json
     sinv = frappe.get_doc(json.loads(sinv_data))
-    sinv.write_off_outstanding_amount_automatically = 1
 
     for sinv_item in sinv.items:
         sinv_item.qty = -1 * sinv_item.qty
@@ -546,10 +545,48 @@ def create_sales_return_invoice(sinv_data):
     sinv.paid_amount = sinv.rounded_total
     sinv.base_paid_amount = sinv.rounded_total
 
+    write_off_amount = False
+    if flt(sinv.paid_amount) != flt(sinv.grand_total):
+        if flt(sinv.paid_amount) > flt(sinv.grand_total):
+            write_off_amount = flt(sinv.paid_amount) - flt(sinv.grand_total)
+    
+        if flt(sinv.grand_total) > flt(sinv.paid_amount):
+            write_off_amount = flt(sinv.grand_total) - flt(sinv.paid_amount)
+    
+    if write_off_amount:
+        sinv.write_off_amount = -1 * write_off_amount
+        sinv.base_write_off_amount = -1 * write_off_amount
+        sinv.write_off_outstanding_amount_automatically = 1
+        sinv.run_method("calculate_taxes_and_totals")
+
     try:
         sinv.insert()
+        sinv.submit()
     except:
-        frappe.throw(str(sinv.as_dict()))
+        frappe.log_error(str(sinv.as_dict()), "Erstellung Gutschrift aus POS failed")
+        frappe.throw("Die Gutschriften-Erstellung ist fehlgeschlagen.")
     
-    sinv.submit()
     return sinv
+
+@frappe.whitelist()
+def create_delivery_note(customer, items):
+    import datetime
+    import json
+    items = json.loads(items)
+    dn_items = []
+    for item in items:
+        dn_items.append({
+            'item_code': item['item_code'],
+            'qty': item['qty'],
+            'rate': item['rate']
+        })
+    
+    dn = frappe.get_doc({
+        "doctype": "Delivery Note",
+        "customer": customer,
+        "items": dn_items,
+        "delivery_date": datetime.datetime.now()
+    })
+    dn.insert()
+    dn.submit()
+    return dn.name

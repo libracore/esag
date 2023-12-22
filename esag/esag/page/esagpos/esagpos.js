@@ -2263,7 +2263,7 @@ class Payment {
         fields = fields.concat([
             {
                 fieldtype: 'Currency',
-                label: __("Betrag abzüglich Gutschrift aus Retoure"),
+                label: __("Betrag abzüglich Gutschrift"),
                 options: me.frm.doc.currency,
                 fieldname: "amount_less_credit",
                 read_only: 1,
@@ -2395,6 +2395,39 @@ class Payment {
             {
                 fieldtype: 'HTML',
                 fieldname: 'numpad'
+            },
+            {
+                fieldtype: 'Button',
+                fieldname: 'auf_rechnung',
+                label: 'Auf Rechnung kaufen',
+                hidden: 0,
+                click: () => {
+                    if (cur_frm.doc.customer == 'K-000318') {
+                        frappe.msgprint("Auf Rechnung können nur hinterlegte Kunden einkaufen.", "Laufkunden sind ausgeschlossen")
+                    } else {
+                        frappe.call({
+                            method: 'esag.esag.page.esagpos.esagpos.create_delivery_note',
+                            args: {
+                                customer: cur_frm.doc.customer,
+                                items: cur_frm.doc.items
+                            },
+                            freeze: true,
+                            callback: function(r) {
+                                if (r.message) {
+                                    frappe.msgprint("Lieferschein " + r.message + " wurde erstellt.")
+                                    cur_dialog.hide()
+                                    var tbl = cur_frm.doc.items || [];
+                                    var i = tbl.length;
+                                    while (i--)
+                                    {
+                                        cur_frm.get_field("items").grid.grid_rows[i].remove();
+                                    }
+                                    setTimeout(function(){ cur_pos.cart.reset(); }, 1000);
+                                }
+                            }
+                        })
+                    }
+                }
             },
             {
                 fieldtype: 'Section Break',
