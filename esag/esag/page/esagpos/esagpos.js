@@ -37,7 +37,7 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
             window.cur_pos = wrapper.pos;
             setTimeout(function(){
                 wrapper.pos.items.search_field.set_focus();
-            }, 1000);
+            }, 1500);
             
         }
     });
@@ -48,7 +48,7 @@ frappe.pages.esagpos.refresh = function(wrapper) {
         wrapper.pos.make_new_invoice();
         setTimeout(function(){
             wrapper.pos.items.search_field.set_focus();
-        }, 1000);
+        }, 1500);
     }
 }
 
@@ -648,6 +648,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             frm.refresh(name);
             frm.doc.items = [];
             frm.doc.is_pos = 1;
+            frm.doc.gegengerechnete_gutschrift = localStorage.getItem('POSGutschrift')||null;
 
             return frm;
         }
@@ -672,6 +673,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         frappe.dom.unfreeze();
                         this.raise_exception_for_pos_profile();
                     }
+                    
                     this.frm.script_manager.trigger("update_stock");
                     frappe.model.set_default_values(this.frm.doc);
                     this.frm.cscript.calculate_taxes_and_totals();
@@ -938,7 +940,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                                                 callback: function(return_invoice) {
                                                     localStorage.setItem('POSGutschrift', return_invoice.message.name);
                                                     localStorage.setItem('POSGutschriftBetrag', return_invoice.message.paid_amount);
-                                                    cur_pos.cart.reset();
+                                                    cur_pos.make_new_invoice();
                                                 }
                                             })
                                         }
@@ -960,7 +962,8 @@ frappe.pages.esagpos.posClass = class PointOfSale {
         this.page.add_menu_item(__("Gutschrift Verwerfen"), function () {
             localStorage.removeItem('POSGutschrift');
             localStorage.removeItem('POSGutschriftBetrag');
-            cur_pos.cart.reset();
+            cur_frm.set_value('gegengerechnete_gutschrift', '');
+            cur_pos.make_new_invoice();
         });
         
         this.page.add_menu_item(__("Receipt printing"), function () {
@@ -2239,6 +2242,8 @@ class Payment {
                 cur_dialog.set_df_property('six_status', 'options', '<div></div>');
                 me.dialog.hide();
                 me.events.submit_form();
+                localStorage.removeItem('POSGutschrift');
+                localStorage.removeItem('POSGutschriftBetrag');
             }
         });
     }
@@ -2275,9 +2280,16 @@ class Payment {
                 click: () => {
                     cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: orange;"><center>Zahlungsprozess läuft</center></div>');
                     cur_dialog.set_df_property('ecr_cancel', 'hidden', 0);
+
                     // prepare amount for ecr terminal
                     var dialog_amount = this.dialog.get_value('amount_less_credit');
-                    var string_dialog_amount = String(dialog_amount);
+                    
+                    var credit = false;
+                    if (dialog_amount < 0) {
+                        credit = true;
+                    }
+
+                    var string_dialog_amount = String(dialog_amount).replace("-", "");
                     var major_amount = string_dialog_amount.split(".")[0];
                     var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
                     var process_amount = major_amount + minor_amount;
@@ -2290,7 +2302,15 @@ class Payment {
                     // send amount to ecr terminal
                     try {
                         let amount  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
-                        simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
+                        if (credit) {
+                            // Rückzahlung
+                            simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.credit, amount);
+                        } else {
+                            // normaler Verkauf
+                            simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
+                        }
+                        
+                        
                     } catch( err ) {
                         if (err == 'ReferenceError: timapi is not defined') {
                             console.log("Error: " + err);
@@ -2598,44 +2618,44 @@ function onTimApiReady() {
 }
 
 let loadTimApiAssets = new Promise(function(good, bad) {
-    // frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
-    //     frappe.show_alert("Lade TimAPI...", 5);
-    //     setTimeout(function(){
-    //         frappe.require('/assets/esag/js/tim/app.js', () => {
-    //             frappe.show_alert("Lade Assets...", 5);
-    //             setTimeout(function(){
-    //                 frappe.show_alert("Verbinde Terminal...", 5);
-    //                 try {
-    //                     simpleEcr.terminal.connectAsync();
-    //                     setTimeout(function(){
-    //                         frappe.show_alert("Terminal Login...", 5);
-    //                         try {
-    //                             simpleEcr.terminal.loginAsync();
-    //                             setTimeout(function(){
-    //                                 frappe.show_alert("Aktiviere Schicht...", 5);
-    //                                 try {
-    //                                     simpleEcr.terminal.activateAsync();
-    //                                     setTimeout(function(){
-    //                                         frappe.show_alert("Das Terminal ist einsatzbereit...", 5);
-    //                                         good(true);
-    //                                     }, 2000);
-    //                                 } catch( err ) {
-    //                                     console.log("Error: " + err);
-    //                                     bad(err);
-    //                                 }
-    //                             }, 2000);
-    //                         } catch (err) {
-    //                             console.log("Error: " + err);
-    //                             bad(err);
-    //                         }
-    //                     }, 2000);
-    //                 } catch (err) {
-    //                     console.log("Error: " + err);
-    //                     bad(err);
-    //                 }
-    //             }, 2000);
-    //         });
-    //     }, 2000);
-    // });
+    frappe.require('/assets/erpnextswiss/js/tim/timapi.js', () => {
+        frappe.show_alert("Lade TimAPI...", 5);
+        setTimeout(function(){
+            frappe.require('/assets/esag/js/tim/app.js', () => {
+                frappe.show_alert("Lade Assets...", 5);
+                setTimeout(function(){
+                    frappe.show_alert("Verbinde Terminal...", 5);
+                    try {
+                        simpleEcr.terminal.connectAsync();
+                        setTimeout(function(){
+                            frappe.show_alert("Terminal Login...", 5);
+                            try {
+                                simpleEcr.terminal.loginAsync();
+                                setTimeout(function(){
+                                    frappe.show_alert("Aktiviere Schicht...", 5);
+                                    try {
+                                        simpleEcr.terminal.activateAsync();
+                                        setTimeout(function(){
+                                            frappe.show_alert("Das Terminal ist einsatzbereit...", 5);
+                                            good(true);
+                                        }, 2000);
+                                    } catch( err ) {
+                                        console.log("Error: " + err);
+                                        bad(err);
+                                    }
+                                }, 2000);
+                            } catch (err) {
+                                console.log("Error: " + err);
+                                bad(err);
+                            }
+                        }, 2000);
+                    } catch (err) {
+                        console.log("Error: " + err);
+                        bad(err);
+                    }
+                }, 2000);
+            });
+        }, 2000);
+    });
 });
 

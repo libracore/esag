@@ -62,6 +62,22 @@ class timapiListener extends timapi.DefaultTerminalListener {
                     if (event.exception === undefined) {
                         if (data.printData.receipts) {
                             if (data.printData.receipts.length > 1) {
+                                frappe.call({
+                                    method: "esag.esag.page.esagpos.esagpos.set_credit_details",
+                                    args: {
+                                        eft_details: data.printData.receipts[data.printData.receipts.length - 1].value,
+                                        trans_seq: data.transactionInformation.transSeq,
+                                        return_invoice: localStorage.getItem('POSGutschrift')
+                                    },
+                                    callback: function(r) {
+                                        console.log("--------------------------------------------------------------------------------------");
+                                        console.log("[libracore] Gutschrift Auszahlung");
+                                        console.log(r.message);
+                                        console.log("--------------------------------------------------------------------------------------");
+                                    }
+                                });
+                                cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                                cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: green;"><center>Zahlungsprozess abgeschlossen</center></div>');
                                 console.log("--------------------------------------------------------------------------------------");
                                 console.log("[libracore] Gutschrift abgeschlossen");
                                 console.log("[libracore]\n" + data.printData.receipts[data.printData.receipts.length - 1].value);
@@ -76,7 +92,8 @@ class timapiListener extends timapi.DefaultTerminalListener {
                         }
                     } else {
                         var error_message = event.exception.errorMessage;
-                        frappe.throw(error_message);
+                        cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red;"><center>' + error_message + '</center></div>');
+                        cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
                     }
                     break;
                 case timapi.constants.TransactionType.reversal:

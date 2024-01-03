@@ -177,6 +177,27 @@ def receipt_print(sinv=None, test_print=False):
             else:
                 p.text("\n")
         
+
+        # Rückgabe Items Table
+        if sinv.gegengerechnete_gutschrift:
+            p.set(text_type="B")
+            p.text("Rücknahmen\n")
+            p.text("Artikel                                    Menge\n")
+            p.set(text_type="NORMAL")
+
+            return_sinv = frappe.get_doc("Sales Invoice", sinv.gegengerechnete_gutschrift)
+            for return_item in return_sinv.items:
+                if len(return_item.item_name) > 38:
+                    return_item_txt = return_item.item_name[:38] + "  "
+                else:
+                    return_item_txt = return_item.item_name.ljust(40, " ")
+                return_item_qty = str(return_item.qty)
+                p.text("{0}{1}\n".format(return_item_txt, return_item_qty))
+            p.text("\n")
+            total_ruecknahme_amount = str(frappe.utils.fmt_money(return_sinv.paid_amount))
+            total_ruecknahme_string = "Abzüglich Rücknahmen CHF"
+            p.text("{0}{1}\n".format(total_ruecknahme_string, total_ruecknahme_amount))
+        
         # Rechnungsübergreifender Rabatt
         if sinv.discount_amount > 0:
             total_amount = str(frappe.utils.fmt_money(sinv.discount_amount))
@@ -590,3 +611,17 @@ def create_delivery_note(customer, items):
     dn.insert()
     dn.submit()
     return dn.name
+
+@frappe.whitelist()
+def set_credit_details(eft_details, trans_seq, return_invoice):
+    query = """
+            UPDATE `tabSales Invoice`
+            SET `eft_details` = '{eft_details}',
+            `trans_seq` = '{trans_seq}'
+            WHERE `name` = '{return_invoice}'
+            """.format(eft_details=eft_details, \
+                        trans_seq=trans_seq, \
+                        return_invoice=return_invoice)
+    update = frappe.db.sql(query, as_list=True)
+    frappe.db.commit()
+    return query
