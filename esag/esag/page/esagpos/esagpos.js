@@ -965,6 +965,52 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             cur_frm.set_value('gegengerechnete_gutschrift', '');
             cur_pos.make_new_invoice();
         });
+
+        this.page.add_menu_item(__("Gutschein einlösen"), function () {
+            var d = new frappe.ui.Dialog({
+                'title': __('Gutschein einlösen'),
+                'fields': [
+                    {'fieldname': 'voucher', 'fieldtype': 'Link', 'label': __('Gutschein'), 'options': 'POS Gutschein', 'reqd': 1,
+                        'change': function() {
+                            var voucher  = d.get_value('voucher');
+                            if (voucher) {
+                                frappe.db.get_doc("POS Gutschein", voucher).then((voucher_details) => {
+                                    d.set_value('verfuegbar', voucher_details.verfuegbar);
+                                })
+                            } else {
+                                d.set_value('verfuegbar', 0);
+                            }
+                        }
+                    },
+                    {'fieldname': 'sb_1', 'fieldtype': 'Section Break', 'label': __('Gutschein Übersicht') },
+                    {'fieldname': 'verfuegbar', 'fieldtype': 'Currency', 'label': __('Verfügbarer Betrag'), 'read_only': 1 }
+                ],
+                'primary_action': function() {
+                    var voucher_verfuegbar = d.get_value('verfuegbar');
+                    if (voucher_verfuegbar <= cur_frm.doc.rounded_total) {
+                        cur_frm.set_value("gutschein", d.get_value('voucher'));
+                        cur_frm.set_value("gutschein_betrag", voucher_verfuegbar);
+                    } else {
+                        if (cur_frm.doc.rounded_total > cur_frm.doc.grand_total) {
+                            cur_frm.set_value("gutschein", d.get_value('voucher'));
+                            cur_frm.set_value("gutschein_betrag", cur_frm.doc.grand_total);
+                        } else {
+                            cur_frm.set_value("gutschein", d.get_value('voucher'));
+                            cur_frm.set_value("gutschein_betrag", cur_frm.doc.rounded_total);
+                        }
+                    }
+
+                    cur_frm.set_value('discount_amount', (cur_frm.doc.discount_amount + cur_frm.doc.gutschein_betrag)).then(() => {
+                        cur_pos.cart.update_discount_fields();
+                        cur_pos.cart.update_taxes_and_totals();
+                        cur_pos.cart.update_grand_total();
+                    });
+                    d.hide();
+                },
+                'primary_action_label': __('Einlösen')
+            });
+            d.show();
+        });
         
         this.page.add_menu_item(__("Receipt printing"), function () {
             var d = new frappe.ui.Dialog({
