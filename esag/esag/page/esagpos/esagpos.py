@@ -188,15 +188,20 @@ def receipt_print(sinv=None, test_print=False):
             return_sinv = frappe.get_doc("Sales Invoice", sinv.gegengerechnete_gutschrift)
             for return_item in return_sinv.items:
                 if len(return_item.item_name) > 38:
-                    return_item_txt = return_item.item_name[:38] + "  "
+                    return_item_txt = return_item.item_name[:42] + "  "
                 else:
-                    return_item_txt = return_item.item_name.ljust(40, " ")
+                    return_item_txt = return_item.item_name.ljust(44, " ")
                 return_item_qty = str(return_item.qty)
                 p.text("{0}{1}\n".format(return_item_txt, return_item_qty))
             p.text("\n")
             total_ruecknahme_amount = str(frappe.utils.fmt_money(return_sinv.paid_amount))
             total_ruecknahme_string = "Abzüglich Rücknahmen CHF"
-            p.text("{0}{1}\n".format(total_ruecknahme_string, total_ruecknahme_amount))
+            if (len(total_ruecknahme_amount) + len(total_ruecknahme_string)) < 43:
+                adjust = 43 - len(total_ruecknahme_amount)
+                total_ruecknahme_string = total_ruecknahme_string.ljust(adjust, " ")
+            else:
+                total_ruecknahme_string = total_ruecknahme_string + " " + total_ruecknahme_amount
+            p.text("{0}\n".format(total_ruecknahme_string))
         
         # Rechnungsübergreifender Rabatt
         if sinv.discount_amount > 0:
