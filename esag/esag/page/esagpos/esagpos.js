@@ -7,7 +7,6 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
         title: __('Point of Sale'),
         single_column: true
     });
-    
     page.add_view('esagpos_login', frappe.render_template("esagpos_login", {}));
     $("#esag_pos_login_btn").click(function(){
         var encrypted_hash = $("#esag_pos_login_password").val();
@@ -36,7 +35,9 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
             // online
             wrapper.pos = new frappe.pages.esagpos.posClass(wrapper);
             window.cur_pos = wrapper.pos;
-            setTimeout(function(){wrapper.pos.items.search_field.set_focus();}, 1000);
+            setTimeout(function(){
+                wrapper.pos.items.search_field.set_focus();
+            }, 1500);
             
         }
     });
@@ -45,7 +46,9 @@ frappe.pages.esagpos.on_page_load = function (wrapper) {
 frappe.pages.esagpos.refresh = function(wrapper) {
     if (wrapper.pos) {
         wrapper.pos.make_new_invoice();
-        setTimeout(function(){wrapper.pos.items.search_field.set_focus();}, 1000);
+        setTimeout(function(){
+            wrapper.pos.items.search_field.set_focus();
+        }, 1500);
     }
 }
 
@@ -645,6 +648,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             frm.refresh(name);
             frm.doc.items = [];
             frm.doc.is_pos = 1;
+            frm.doc.gegengerechnete_gutschrift = localStorage.getItem('POSGutschrift')||null;
 
             return frm;
         }
@@ -669,6 +673,7 @@ frappe.pages.esagpos.posClass = class PointOfSale {
                         frappe.dom.unfreeze();
                         this.raise_exception_for_pos_profile();
                     }
+                    
                     this.frm.script_manager.trigger("update_stock");
                     frappe.model.set_default_values(this.frm.doc);
                     this.frm.cscript.calculate_taxes_and_totals();
@@ -873,26 +878,138 @@ frappe.pages.esagpos.posClass = class PointOfSale {
             ],
             function(values){
                 frappe.call({
-                    type: "POST",
-                    method: 'frappe.model.mapper.make_mapped_doc',
-                    args: {
-                        method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
-                        source_name: values.sinv,
-                        args: null,
-                        selected_children: null
+                    "method": "frappe.client.get",
+                    "args": {
+                        "doctype": "Sales Invoice",
+                        "name": values.sinv
                     },
-                    freeze: true,
-                    callback: function(r) {
-                        if(!r.exc) {
-                            frappe.model.sync(r.message);
-                            frappe.set_route("Form", r.message.doctype, r.message.name);
-                        }
+                    "callback": function(response) {
+                        var sinv_to_return = response.message;
+                        var return_dialog = new frappe.ui.Dialog({
+                            'fields': [
+                                {'fieldname': 'items', 
+                                 'fieldtype': 'Table', 
+                                 'label': 'Items', 
+                                 'reqd': 1,
+                                 'fields' : [{
+                                     'fieldname': 'item_code', 
+                                     'fieldtype': 'Link', 
+                                     'label': __('Item code'),
+                                     'in_list_view': 1,
+                                     'reqd': 1,
+                                     'options': 'Item'
+                                 },
+                                 {
+                                    'fieldname': 'item_name', 
+                                    'fieldtype': 'Data', 
+                                    'label': __('Item Name'),
+                                    'in_list_view': 1,
+                                },
+                                 {
+                                     'fieldname': 'qty', 
+                                     'fieldtype': 'Float', 
+                                     'label': __('Qty'),
+                                     'in_list_view': 1,
+                                     'reqd': 1
+                                 }],
+                                 data: sinv_to_return.items
+                                }
+                            ],
+                            primary_action: function(){
+                                return_dialog.hide();
+                                frappe.call({
+                                    type: "POST",
+                                    method: 'frappe.model.mapper.make_mapped_doc',
+                                    args: {
+                                        method: 'erpnext.accounts.doctype.sales_invoice.sales_invoice.make_sales_return',
+                                        source_name: sinv_to_return.name,
+                                        args: null,
+                                        selected_children: null
+                                    },
+                                    freeze: true,
+                                    callback: function(r) {
+                                        if(!r.exc) {
+                                            var prepared_return_invoice = r.message
+                                            prepared_return_invoice.items = return_dialog.get_value('items')
+                                            frappe.call({
+                                                method: 'esag.esag.page.esagpos.esagpos.create_sales_return_invoice',
+                                                args: {
+                                                    sinv_data: prepared_return_invoice
+                                                },
+                                                freeze: true,
+                                                callback: function(return_invoice) {
+                                                    localStorage.setItem('POSGutschrift', return_invoice.message.name);
+                                                    localStorage.setItem('POSGutschriftBetrag', return_invoice.message.paid_amount);
+                                                    cur_pos.make_new_invoice();
+                                                }
+                                            })
+                                        }
+                                    }
+                                })
+                            },
+                            primary_action_label: __('Reture / Gutschrift erzuegen'),
+                            title: __('Reture / Gutschrift')
+                        });
+                        return_dialog.show();
                     }
-                })
+                });
             },
             __("Return / Credit Note"),
-            __("Create")
+            __("Beleg laden")
             )
+        });
+
+        this.page.add_menu_item(__("Gutschrift Verwerfen"), function () {
+            localStorage.removeItem('POSGutschrift');
+            localStorage.removeItem('POSGutschriftBetrag');
+            cur_frm.set_value('gegengerechnete_gutschrift', '');
+            cur_pos.make_new_invoice();
+        });
+
+        this.page.add_menu_item(__("Gutschein einlösen"), function () {
+            var d = new frappe.ui.Dialog({
+                'title': __('Gutschein einlösen'),
+                'fields': [
+                    {'fieldname': 'voucher', 'fieldtype': 'Link', 'label': __('Gutschein'), 'options': 'POS Gutschein', 'reqd': 1,
+                        'change': function() {
+                            var voucher  = d.get_value('voucher');
+                            if (voucher) {
+                                frappe.db.get_doc("POS Gutschein", voucher).then((voucher_details) => {
+                                    d.set_value('verfuegbar', voucher_details.verfuegbar);
+                                })
+                            } else {
+                                d.set_value('verfuegbar', 0);
+                            }
+                        }
+                    },
+                    {'fieldname': 'sb_1', 'fieldtype': 'Section Break', 'label': __('Gutschein Übersicht') },
+                    {'fieldname': 'verfuegbar', 'fieldtype': 'Currency', 'label': __('Verfügbarer Betrag'), 'read_only': 1 }
+                ],
+                'primary_action': function() {
+                    var voucher_verfuegbar = d.get_value('verfuegbar');
+                    if (voucher_verfuegbar <= cur_frm.doc.rounded_total) {
+                        cur_frm.set_value("gutschein", d.get_value('voucher'));
+                        cur_frm.set_value("gutschein_betrag", voucher_verfuegbar);
+                    } else {
+                        if (cur_frm.doc.rounded_total > cur_frm.doc.grand_total) {
+                            cur_frm.set_value("gutschein", d.get_value('voucher'));
+                            cur_frm.set_value("gutschein_betrag", cur_frm.doc.grand_total);
+                        } else {
+                            cur_frm.set_value("gutschein", d.get_value('voucher'));
+                            cur_frm.set_value("gutschein_betrag", cur_frm.doc.rounded_total);
+                        }
+                    }
+
+                    cur_frm.set_value('discount_amount', (cur_frm.doc.discount_amount + cur_frm.doc.gutschein_betrag)).then(() => {
+                        cur_pos.cart.update_discount_fields();
+                        cur_pos.cart.update_taxes_and_totals();
+                        cur_pos.cart.update_grand_total();
+                    });
+                    d.hide();
+                },
+                'primary_action_label': __('Einlösen')
+            });
+            d.show();
         });
         
         this.page.add_menu_item(__("Receipt printing"), function () {
@@ -1075,6 +1192,9 @@ class POSCart {
                                 <div class="quantity-total">
                                     ${this.get_item_qty_total()}
                                 </div>
+                                <div class="gutschrift-aus-retoure">
+                                    ${this.get_gutschrift_aus_retoure()}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1096,6 +1216,7 @@ class POSCart {
         this.$discount_amount = this.wrapper.find('.discount-amount');
         this.$grand_total = this.wrapper.find('.grand-total');
         this.$qty_total = this.wrapper.find('.quantity-total');
+        this.$gutschrift_aus_retoure = this.wrapper.find('.gutschrift-aus-retoure');
         // this.$loyalty_button = this.wrapper.find('.loyalty-button');
 
         // this.$loyalty_button.on('click', () => {
@@ -1125,6 +1246,8 @@ class POSCart {
         this.wrapper.find('.rounded-total-value').text(
             format_currency(this.frm.doc.rounded_total, this.frm.currency));
         this.$qty_total.find(".quantity-total").text(total_item_qty);
+        
+        this.$gutschrift_aus_retoure.html(this.get_gutschrift_aus_retoure());
 
         const customer = this.frm.doc.customer;
         this.customer_field.set_value(customer);
@@ -1154,6 +1277,21 @@ class POSCart {
     get_item_qty_total() {
         let total = this.get_total_template('Total Qty', 'quantity-total');
         return total;
+    }
+
+    get_gutschrift_aus_retoure() {
+        let return_invoice = localStorage.getItem('POSGutschrift')||false;
+        if (return_invoice) {
+            let gutschriftbetrag_aus_retoure = format_currency(localStorage.getItem('POSGutschriftBetrag'), this.frm.currency);
+            return `
+                <div class="list-item" style="background-color: orange;">
+                    <div class="list-item__content text-muted" style="color: black !important;">Gutschrift aus Retoure</div>
+                    <div class="list-item__content list-item__content--flex-2 quantity-total">${gutschriftbetrag_aus_retoure}</div>
+                </div>
+            `
+        } else {
+            return ''
+        }
     }
 
     get_total_template(label, class_name) {
@@ -2070,6 +2208,7 @@ class Payment {
     }
 
     open_modal() {
+        this.set_amount_less_credit();
         this.dialog.show();
     }
 
@@ -2127,6 +2266,17 @@ class Payment {
         });
     }
 
+    set_amount_less_credit() {
+        var me = this;
+        let return_invoice = localStorage.getItem('POSGutschrift')||false;
+        let gutschriftbetrag_aus_retoure = 0
+        if (return_invoice) {
+            gutschriftbetrag_aus_retoure = parseFloat(localStorage.getItem('POSGutschriftBetrag'));
+        }
+        let gesamtbetrag = (me.frm.doc.rounded_total || me.frm.doc.grand_total) + gutschriftbetrag_aus_retoure;
+        me.dialog.set_value('amount_less_credit', gesamtbetrag);
+    }    
+
     set_primary_action() {
         var me = this;
 
@@ -2138,6 +2288,8 @@ class Payment {
                 cur_dialog.set_df_property('six_status', 'options', '<div></div>');
                 me.dialog.hide();
                 me.events.submit_form();
+                localStorage.removeItem('POSGutschrift');
+                localStorage.removeItem('POSGutschriftBetrag');
             }
         });
     }
@@ -2161,15 +2313,29 @@ class Payment {
 
         fields = fields.concat([
             {
+                fieldtype: 'Currency',
+                label: __("Betrag abzüglich Gutschrift"),
+                options: me.frm.doc.currency,
+                fieldname: "amount_less_credit",
+                read_only: 1,
+            },
+            {
                 fieldtype: 'Button',
                 fieldname: 'ecr_btn',
                 label: 'SIX-Terminal',
                 click: () => {
                     cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: orange;"><center>Zahlungsprozess läuft</center></div>');
                     cur_dialog.set_df_property('ecr_cancel', 'hidden', 0);
+
                     // prepare amount for ecr terminal
-                    var dialog_amount = this.dialog.get_value('SIX-Kartenterminal');
-                    var string_dialog_amount = String(dialog_amount);
+                    var dialog_amount = this.dialog.get_value('amount_less_credit');
+                    
+                    var credit = false;
+                    if (dialog_amount < 0) {
+                        credit = true;
+                    }
+
+                    var string_dialog_amount = String(dialog_amount).replace("-", "");
                     var major_amount = string_dialog_amount.split(".")[0];
                     var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
                     var process_amount = major_amount + minor_amount;
@@ -2182,7 +2348,15 @@ class Payment {
                     // send amount to ecr terminal
                     try {
                         let amount  = new timapi.Amount(process_amount, timapi.constants.Currency.CHF)
-                        simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
+                        if (credit) {
+                            // Rückzahlung
+                            simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.credit, amount);
+                        } else {
+                            // normaler Verkauf
+                            simpleEcr.terminal.transactionAsync(timapi.constants.TransactionType.purchase, amount);
+                        }
+                        
+                        
                     } catch( err ) {
                         if (err == 'ReferenceError: timapi is not defined') {
                             console.log("Error: " + err);
@@ -2287,6 +2461,39 @@ class Payment {
             {
                 fieldtype: 'HTML',
                 fieldname: 'numpad'
+            },
+            {
+                fieldtype: 'Button',
+                fieldname: 'auf_rechnung',
+                label: 'Auf Rechnung kaufen',
+                hidden: 0,
+                click: () => {
+                    if (cur_frm.doc.customer == 'K-000318') {
+                        frappe.msgprint("Auf Rechnung können nur hinterlegte Kunden einkaufen.", "Laufkunden sind ausgeschlossen")
+                    } else {
+                        frappe.call({
+                            method: 'esag.esag.page.esagpos.esagpos.create_delivery_note',
+                            args: {
+                                customer: cur_frm.doc.customer,
+                                items: cur_frm.doc.items
+                            },
+                            freeze: true,
+                            callback: function(r) {
+                                if (r.message) {
+                                    frappe.msgprint("Lieferschein " + r.message + " wurde erstellt.")
+                                    cur_dialog.hide()
+                                    var tbl = cur_frm.doc.items || [];
+                                    var i = tbl.length;
+                                    while (i--)
+                                    {
+                                        cur_frm.get_field("items").grid.grid_rows[i].remove();
+                                    }
+                                    setTimeout(function(){ cur_pos.cart.reset(); }, 1000);
+                                }
+                            }
+                        })
+                    }
+                }
             },
             {
                 fieldtype: 'Section Break',

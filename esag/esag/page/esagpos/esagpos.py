@@ -177,6 +177,27 @@ def receipt_print(sinv=None, test_print=False):
             else:
                 p.text("\n")
         
+
+        # Rückgabe Items Table
+        if sinv.gegengerechnete_gutschrift:
+            p.set(text_type="B")
+            p.text("Rücknahmen\n")
+            p.text("Artikel                                    Menge\n")
+            p.set(text_type="NORMAL")
+
+            return_sinv = frappe.get_doc("Sales Invoice", sinv.gegengerechnete_gutschrift)
+            for return_item in return_sinv.items:
+                if len(return_item.item_name) > 38:
+                    return_item_txt = return_item.item_name[:38] + "  "
+                else:
+                    return_item_txt = return_item.item_name.ljust(40, " ")
+                return_item_qty = str(return_item.qty)
+                p.text("{0}{1}\n".format(return_item_txt, return_item_qty))
+            p.text("\n")
+            total_ruecknahme_amount = str(frappe.utils.fmt_money(return_sinv.paid_amount))
+            total_ruecknahme_string = "Abzüglich Rücknahmen CHF"
+            p.text("{0}{1}\n".format(total_ruecknahme_string, total_ruecknahme_amount))
+        
         # Rechnungsübergreifender Rabatt
         if sinv.discount_amount > 0:
             total_amount = str(frappe.utils.fmt_money(sinv.discount_amount))
@@ -525,3 +546,82 @@ def get_rounded_tax_amount(itemised_tax, precision):
     for taxes in itemised_tax.values():
         for tax_account in taxes:
             taxes[tax_account]["tax_amount"] = flt(taxes[tax_account]["tax_amount"], precision)
+
+@frappe.whitelist()
+def create_sales_return_invoice(sinv_data):
+    import json
+    sinv = frappe.get_doc(json.loads(sinv_data))
+
+    for sinv_item in sinv.items:
+        sinv_item.qty = -1 * sinv_item.qty
+        sinv_item.stock_qty = sinv_item.qty
+        sinv_item.amount = sinv_item.qty * sinv_item.rate
+    
+    sinv.run_method("calculate_taxes_and_totals")
+
+    for sinv_payments in sinv.payments:
+        sinv_payments.amount = sinv.rounded_total
+        sinv_payments.base_amount = sinv.rounded_total
+    
+    sinv.paid_amount = sinv.rounded_total
+    sinv.base_paid_amount = sinv.rounded_total
+
+    write_off_amount = False
+    if flt(sinv.paid_amount) != flt(sinv.grand_total):
+        if flt(sinv.paid_amount) > flt(sinv.grand_total):
+            write_off_amount = flt(sinv.paid_amount) - flt(sinv.grand_total)
+    
+        if flt(sinv.grand_total) > flt(sinv.paid_amount):
+            write_off_amount = flt(sinv.grand_total) - flt(sinv.paid_amount)
+    
+    if write_off_amount:
+        sinv.write_off_amount = -1 * write_off_amount
+        sinv.base_write_off_amount = -1 * write_off_amount
+        sinv.write_off_outstanding_amount_automatically = 1
+        sinv.run_method("calculate_taxes_and_totals")
+
+    try:
+        sinv.insert()
+        sinv.submit()
+    except:
+        frappe.log_error(str(sinv.as_dict()), "Erstellung Gutschrift aus POS failed")
+        frappe.throw("Die Gutschriften-Erstellung ist fehlgeschlagen.")
+    
+    return sinv
+
+@frappe.whitelist()
+def create_delivery_note(customer, items):
+    import datetime
+    import json
+    items = json.loads(items)
+    dn_items = []
+    for item in items:
+        dn_items.append({
+            'item_code': item['item_code'],
+            'qty': item['qty'],
+            'rate': item['rate']
+        })
+    
+    dn = frappe.get_doc({
+        "doctype": "Delivery Note",
+        "customer": customer,
+        "items": dn_items,
+        "delivery_date": datetime.datetime.now()
+    })
+    dn.insert()
+    dn.submit()
+    return dn.name
+
+@frappe.whitelist()
+def set_credit_details(eft_details, trans_seq, return_invoice):
+    query = """
+            UPDATE `tabSales Invoice`
+            SET `eft_details` = '{eft_details}',
+            `trans_seq` = '{trans_seq}'
+            WHERE `name` = '{return_invoice}'
+            """.format(eft_details=eft_details, \
+                        trans_seq=trans_seq, \
+                        return_invoice=return_invoice)
+    update = frappe.db.sql(query, as_list=True)
+    frappe.db.commit()
+    return query
