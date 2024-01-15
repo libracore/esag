@@ -236,7 +236,7 @@ def receipt_print(sinv=None, test_print=False):
         
         # Total gerundet
         if sinv.gegengerechnete_gutschrift:
-            total_amount = str(frappe.utils.fmt_money(sinv.rounded_total - return_sinv.paid_amount))
+            total_amount = str(frappe.utils.fmt_money(sinv.rounded_total + return_sinv.paid_amount))
         else:
             total_amount = str(frappe.utils.fmt_money(sinv.rounded_total))
         total_string = "TOTAL CHF"
