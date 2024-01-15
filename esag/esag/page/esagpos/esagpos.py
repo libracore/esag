@@ -199,9 +199,7 @@ def receipt_print(sinv=None, test_print=False):
             if (len(total_ruecknahme_amount) + len(total_ruecknahme_string)) < 43:
                 adjust = 43 - len(total_ruecknahme_amount)
                 total_ruecknahme_string = total_ruecknahme_string.ljust(adjust, " ")
-            else:
-                total_ruecknahme_string = total_ruecknahme_string + " " + total_ruecknahme_amount
-            p.text("{0}\n".format(total_ruecknahme_string))
+            p.text("{0}{1}\n".format(total_ruecknahme_string, total_ruecknahme_amount))
         
         # Rechnungsübergreifender Rabatt
         if sinv.discount_amount > 0:
@@ -237,7 +235,10 @@ def receipt_print(sinv=None, test_print=False):
             p.text("{0}{1}\n".format(total_string, total_amount))
         
         # Total gerundet
-        total_amount = str(frappe.utils.fmt_money(sinv.rounded_total))
+        if sinv.gegengerechnete_gutschrift:
+            total_amount = str(frappe.utils.fmt_money(sinv.rounded_total - return_sinv.paid_amount))
+        else:
+            total_amount = str(frappe.utils.fmt_money(sinv.rounded_total))
         total_string = "TOTAL CHF"
         
         if (len(total_amount) + len(total_string)) < 43:
