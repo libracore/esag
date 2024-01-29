@@ -2,6 +2,8 @@
 ETH Store AG ERP applications
 
 ### Version Log
+#### 1.1.1
+Hotfix rounding-diff in returns of POS
 #### 1.1.0
 Daily-Job to clearing_rounding_differences
 #### 1.0.0
