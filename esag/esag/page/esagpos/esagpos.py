@@ -568,6 +568,7 @@ def create_sales_return_invoice(sinv_data):
     for sinv_payments in sinv.payments:
         sinv_payments.amount = sinv.rounded_total
         sinv_payments.base_amount = sinv.rounded_total
+        sinv_payments.account = frappe.db.sql("""SELECT `default_account` FROM `tabMode of Payment Account` WHERE `parent` = '{0}' AND `idx` = 1""".format(sinv_payments.mode_of_payment), as_dict=True)[0].default_account
     
     sinv.paid_amount = sinv.rounded_total
     sinv.base_paid_amount = sinv.rounded_total
@@ -575,10 +576,10 @@ def create_sales_return_invoice(sinv_data):
     write_off_amount = False
     if flt(sinv.paid_amount) != flt(sinv.grand_total):
         if flt(sinv.paid_amount) > flt(sinv.grand_total):
-            write_off_amount = flt(sinv.paid_amount) - flt(sinv.grand_total)
+            write_off_amount = frappe.utils.rounded(flt(sinv.paid_amount) - flt(sinv.grand_total), 2)
     
         if flt(sinv.grand_total) > flt(sinv.paid_amount):
-            write_off_amount = flt(sinv.grand_total) - flt(sinv.paid_amount)
+            write_off_amount = frappe.utils.rounded(flt(sinv.grand_total) - flt(sinv.paid_amount), 2)
     
     if write_off_amount:
         sinv.write_off_amount = -1 * write_off_amount
@@ -587,10 +588,11 @@ def create_sales_return_invoice(sinv_data):
         sinv.run_method("calculate_taxes_and_totals")
 
     try:
+        sinv.flags.ignore_validate = True
         sinv.insert()
         sinv.submit()
-    except:
-        frappe.log_error(str(sinv.as_dict()), "Erstellung Gutschrift aus POS failed")
+    except Exception as err:
+        frappe.log_error(str(err) + "\n\n" + str(sinv.as_dict()), "Erstellung Gutschrift aus POS failed")
         frappe.throw("Die Gutschriften-Erstellung ist fehlgeschlagen.")
     
     return sinv
