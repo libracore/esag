@@ -2335,7 +2335,8 @@ class Payment {
                         credit = true;
                     }
 
-                    var string_dialog_amount = String(dialog_amount).replace("-", "");
+                    var rounded_dialog_amount = Number((dialog_amount).toFixed(2));
+                    var string_dialog_amount = String(rounded_dialog_amount).replace("-", "");
                     var major_amount = string_dialog_amount.split(".")[0];
                     var minor_amount = string_dialog_amount.includes(".") ? string_dialog_amount.split(".")[1]:"";
                     var process_amount = major_amount + minor_amount;
@@ -2412,6 +2413,7 @@ class Payment {
                             console.log("Error: " + err);
                             cur_dialog.set_df_property('six_status', 'options', '<div width="20" height="20" style="background-color: red; color: white;"><center>Zahlungsterminal Verbindungsproblem</center></div>');
                             cur_dialog.set_df_property('ecr_cancel', 'hidden', 1);
+                            
                             frappe.throw("Ein Fehler ist aufgetreten, siehe Konsole für Details.<hr>" + err);
                         }
                     }
