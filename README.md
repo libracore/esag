@@ -2,6 +2,8 @@
 ETH Store AG ERP applications
 
 ### Version Log
+#### 1.2.1
+Korrektur Preisschild
 #### 1.2.0
 Fix of "Amount is too large (only 52bit values supported by JavaScript)"
 #### 1.1.1
